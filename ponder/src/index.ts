@@ -10,7 +10,13 @@ import {
   dailyStats,
   hourlyStats,
 } from "../ponder.schema";
-import { erc20Abi } from "viem";
+import { createPublicClient, http, erc20Abi } from "viem";
+
+// Create a dedicated viem client for fetching block data with transactions
+// Ponder's context.client doesn't expose getBlock/getTransaction methods
+const rpcClient = createPublicClient({
+  transport: http(process.env.FLOW_EVM_RPC_URL ?? "https://mainnet.evm.nodes.onflow.org"),
+});
 
 // Helper to get date key (YYYY-MM-DD) from timestamp
 function getDateKey(timestamp: bigint): string {
@@ -31,8 +37,8 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
   const { db, client } = context;
   const block = event.block;
 
-  // Ponder block events don't include transaction data, so fetch the full block
-  const fullBlock = await client.getBlock({
+  // Ponder block events don't include transaction data, so fetch using our dedicated client
+  const fullBlock = await rpcClient.getBlock({
     blockNumber: block.number,
     includeTransactions: true,
   });
@@ -85,7 +91,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     if (typeof txData === "string") {
       // txData is just a hash, fetch full transaction
       try {
-        const fullTx = await client.getTransaction({ hash: txData as `0x${string}` });
+        const fullTx = await rpcClient.getTransaction({ hash: txData as `0x${string}` });
         tx = {
           hash: fullTx.hash,
           from: fullTx.from,
@@ -111,7 +117,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     let contractAddress: `0x${string}` | null = null;
 
     try {
-      const receipt = await client.getTransactionReceipt({ hash: tx.hash });
+      const receipt = await rpcClient.getTransactionReceipt({ hash: tx.hash });
       gasUsed = receipt.gasUsed;
       status = receipt.status === "success" ? 1 : 0;
       contractAddress = receipt.contractAddress ?? null;
@@ -151,7 +157,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
       // Get bytecode size
       let bytecodeSize: number | null = null;
       try {
-        const code = await client.getBytecode({ address: contractAddress });
+        const code = await rpcClient.getCode({ address: contractAddress });
         if (code) bytecodeSize = code.length;
       } catch {
         // Ignore
