@@ -39,6 +39,24 @@ interface AccountContentProps {
 
 const PAGE_SIZE = 25;
 
+// Detect Flow COA (Cadence Owned Account) - addresses starting with leading zeros
+function isCOA(address: string): boolean {
+  // COA addresses on Flow EVM start with 0x000000000000000000000000
+  // They have at least 8 leading zero bytes (16 hex chars after 0x)
+  return address.toLowerCase().startsWith("0x000000000000000000000000");
+}
+
+// Get account type label and color
+function getAccountType(address: string, isContract: boolean): { label: string; title: string; color: string } {
+  if (isCOA(address)) {
+    return { label: "COA", title: "Cadence Owned Account", color: "green" };
+  }
+  if (isContract) {
+    return { label: "Contract", title: "Smart Contract", color: "purple" };
+  }
+  return { label: "EOA", title: "Externally Owned Account", color: "blue" };
+}
+
 export default function AccountContent({
   address,
   balance,
@@ -47,6 +65,9 @@ export default function AccountContent({
   isContract,
   txHistory: initialTxHistory,
 }: AccountContentProps) {
+  // Determine account type
+  const accountType = getAccountType(address, isContract);
+
   // Transaction pagination state
   const [txHistory, setTxHistory] = useState<Transaction[]>(initialTxHistory);
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,11 +95,13 @@ export default function AccountContent({
         const response = await fetch(ponderUrl);
         if (response.ok) {
           const data = await response.json();
-          if (data.available && data.transactions) {
+          // Only use Ponder if it actually has transactions
+          if (data.available && data.transactions && data.transactions.length > 0) {
             if (mounted) {
               setTxHistory(data.transactions);
               setTotalTxCount(data.totalCount || transactionCount);
               setUsePonder(true);
+              setTxLoading(false);
             }
             return;
           }
@@ -87,12 +110,12 @@ export default function AccountContent({
         // Ponder not available
       }
 
-      // Fall back to initial data for page 1
-      if (mounted && currentPage === 1) {
-        setTxHistory(initialTxHistory);
-      }
-
+      // Fall back to initial data (from RPC scan) for any page
       if (mounted) {
+        if (currentPage === 1) {
+          setTxHistory(initialTxHistory);
+        }
+        setUsePonder(false);
         setTxLoading(false);
       }
     }
@@ -189,7 +212,7 @@ export default function AccountContent({
         <DataField label="Address" value={address} mono copyable />
         <DataField label="Balance (wei)" value={balance.wei.toString()} mono />
         <DataField label="Transaction Count" value={transactionCount} />
-        <DataField label="Type" value={isContract ? "Smart Contract" : "Externally Owned Account (EOA)"} />
+        <DataField label="Type" value={`${accountType.title} (${accountType.label})`} />
       </div>
     </>
   );
@@ -525,9 +548,9 @@ export default function AccountContent({
       <div style={{ marginBottom: "var(--space-xl)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)", marginBottom: "var(--space-sm)" }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
-            {isContract ? "Contract" : "Account"}
+            {accountType.title}
           </h1>
-          {isContract ? <Tag color="purple">Contract</Tag> : <Tag color="blue">EOA</Tag>}
+          <Tag color={accountType.color}>{accountType.label}</Tag>
         </div>
         <p className="mono" style={{ color: "var(--text-muted)", fontSize: 13, wordBreak: "break-all" }}>
           {address}

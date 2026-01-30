@@ -22,14 +22,18 @@ export default async function AccountPage({ params }: { params: Promise<{ addres
 
   const isContract = code !== "0x" && code.length > 2;
 
-  // Get transaction history - prefer Ponder if available, otherwise scan recent blocks
+  // Get transaction history - try Ponder first, fall back to RPC scan
   let txHistory: Array<{ hash: string; from: string; to: string | null; blockNumber: string }> = [];
 
   if (ponderAvailable) {
+    // Try Ponder first
     txHistory = await getAccountTransactions(address);
-  } else {
-    // Scan recent blocks for transactions involving this address
-    const recentTxs = await getRecentTransactionsForAddress(addr, 500);
+  }
+
+  // If Ponder didn't return data, scan recent blocks via RPC
+  // Scan 5000 blocks (~1.5 hours at Flow's ~1 block/sec)
+  if (txHistory.length === 0) {
+    const recentTxs = await getRecentTransactionsForAddress(addr, 5000);
     txHistory = recentTxs.map((tx) => ({
       hash: tx.hash,
       from: tx.from,

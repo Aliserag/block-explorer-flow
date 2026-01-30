@@ -95,7 +95,7 @@ export async function getCode(address: Address, network: NetworkId = "mainnet") 
 // Scan recent blocks for transactions involving an address
 export async function getRecentTransactionsForAddress(
   address: Address,
-  maxBlocks: number = 500,
+  maxBlocks: number = 10000, // ~3 hours at 1 block/sec
   network: NetworkId = "mainnet"
 ): Promise<Array<{ hash: string; from: string; to: string | null; blockNumber: string; value: string }>> {
   const client = getClient(network);
@@ -104,11 +104,11 @@ export async function getRecentTransactionsForAddress(
 
   const transactions: Array<{ hash: string; from: string; to: string | null; blockNumber: string; value: string }> = [];
 
-  // Fetch blocks in batches
-  const batchSize = 50;
-  const batches = Math.ceil(maxBlocks / batchSize);
+  // Fetch blocks in larger batches for efficiency
+  const batchSize = 100;
+  const maxBatches = Math.ceil(maxBlocks / batchSize);
 
-  for (let batch = 0; batch < batches && transactions.length < 25; batch++) {
+  for (let batch = 0; batch < maxBatches && transactions.length < 50; batch++) {
     const startBlock = latestBlock - BigInt(batch * batchSize);
     const promises = Array.from({ length: batchSize }, (_, i) => {
       const blockNum = startBlock - BigInt(i);
@@ -135,12 +135,12 @@ export async function getRecentTransactionsForAddress(
               value: tx.value?.toString() || "0",
             });
 
-            if (transactions.length >= 25) break;
+            if (transactions.length >= 50) break;
           }
         }
       }
 
-      if (transactions.length >= 25) break;
+      if (transactions.length >= 50) break;
     }
   }
 

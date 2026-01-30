@@ -1,6 +1,7 @@
 import { type Address, formatUnits } from "viem";
 import { getClient } from "./rpc";
 import { type NetworkId } from "./chains";
+import localTokens from "@/data/tokens.json";
 
 // Token interface
 export interface Token {
@@ -52,63 +53,29 @@ const erc20Abi = [
 
 // Cache for token registry
 let tokenRegistryCache: Token[] | null = null;
-let cacheTimestamp: number = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Flow token registry URL
-const FLOW_TOKEN_REGISTRY_URL =
-  "https://raw.githubusercontent.com/onflow/assets/main/tokens/outputs/mainnet/token-list.json";
-
-// Fetch token list from Flow registry
-async function fetchTokenRegistry(): Promise<Token[]> {
-  // Check cache
-  if (tokenRegistryCache && Date.now() - cacheTimestamp < CACHE_TTL) {
+// Load tokens from local registry (comprehensive list from fixes.world + official tokens)
+function fetchTokenRegistry(): Token[] {
+  if (tokenRegistryCache) {
     return tokenRegistryCache;
   }
 
-  try {
-    const response = await fetch(FLOW_TOKEN_REGISTRY_URL, {
-      next: { revalidate: 300 }, // Cache for 5 minutes
-    });
+  // Use local tokens.json which has 59+ tokens
+  const tokens: Token[] = localTokens.map((token) => ({
+    address: token.address,
+    name: token.name,
+    symbol: token.symbol,
+    decimals: token.decimals,
+    logoURI: token.logoURI || null,
+  }));
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch token registry: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const tokens: Token[] = [];
-
-    // Parse tokens from the registry
-    if (data.tokens && Array.isArray(data.tokens)) {
-      for (const token of data.tokens) {
-        // Only include tokens with EVM addresses
-        if (token.evmAddress) {
-          tokens.push({
-            address: token.evmAddress,
-            name: token.name || "Unknown",
-            symbol: token.symbol || "???",
-            decimals: token.decimals || 18,
-            logoURI: token.logoURI || null,
-          });
-        }
-      }
-    }
-
-    // Cache the results
-    tokenRegistryCache = tokens;
-    cacheTimestamp = Date.now();
-
-    return tokens;
-  } catch (error) {
-    console.error("Error fetching token registry:", error);
-    // Return cached data if available, even if stale
-    return tokenRegistryCache || [];
-  }
+  tokenRegistryCache = tokens;
+  return tokens;
 }
 
 // Get token list (combines registry with any additional known tokens)
-export async function getTokenList(): Promise<Token[]> {
-  const registryTokens = await fetchTokenRegistry();
+export function getTokenList(): Token[] {
+  const registryTokens = fetchTokenRegistry();
 
   // Additional tokens not in the official registry
   // These will use default letter-based logos
@@ -135,7 +102,7 @@ export async function getTokenBalances(
   network: NetworkId = "mainnet"
 ): Promise<TokenBalance[]> {
   const client = getClient(network);
-  const tokens = await getTokenList();
+  const tokens = getTokenList();
 
   if (tokens.length === 0) {
     return [];
