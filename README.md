@@ -1,117 +1,112 @@
 # Flow EVM Block Explorer
 
-A modern block explorer for Flow EVM (Chain ID: 747) built with React, Express, and Ponder.sh.
+A modern block explorer for Flow EVM (Chain ID: 747) built with Next.js and Ponder.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    React Frontend (Vite + Ant Design)           │
-│  Routes: /blocks, /block/:num, /tx/:hash, /account/:addr        │
+│                    Next.js App (Vercel)                         │
+│  ├── app/                    # React pages with SSR             │
+│  ├── lib/rpc.ts              # viem for real-time data          │
+│  └── lib/ponder.ts           # Client for Ponder GraphQL        │
 └─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                 API Gateway (Express + Redis cache)             │
-│  Aggregates: Direct RPC + Ponder GraphQL                        │
-└─────────────────────────────────────────────────────────────────┘
-         │                              │
-         ▼                              ▼
-┌─────────────────┐          ┌─────────────────┐
-│  viem RPC Client │          │  Ponder Indexer │
-│  (Real-time data)│          │  (Historical)   │
-└─────────────────┘          └─────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              Flow EVM RPC (Chain ID: 747)                       │
-│        https://mainnet.evm.nodes.onflow.org                     │
-└─────────────────────────────────────────────────────────────────┘
+          │                              │
+          ▼                              ▼
+┌─────────────────┐          ┌─────────────────────────────────┐
+│  Flow EVM RPC   │          │  Ponder Indexer (Railway)       │
+│  (real-time)    │          │  ├── GraphQL API                │
+│                 │          │  └── PostgreSQL                 │
+└─────────────────┘          └─────────────────────────────────┘
 ```
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Vite, Ant Design, Framer Motion
-- **API**: Node.js, Express, Redis (caching), viem
+- **Frontend**: Next.js 14, React 18, TypeScript, Ant Design
+- **Blockchain Client**: viem (type-safe Ethereum client)
 - **Indexer**: Ponder.sh, PostgreSQL
-- **Monorepo**: pnpm workspaces, Turborepo
+- **Styling**: CSS Variables, Framer Motion
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 18+
-- pnpm 9+
-- Docker (for PostgreSQL and Redis)
-
-### Installation
-
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
-# Start databases
-pnpm db:up
+# Run Next.js development server
+npm run dev
 
-# Run all services in development
-pnpm dev
+# In a separate terminal, run Ponder indexer (optional)
+cd ponder && npm install && npm run dev
 ```
 
-### Individual Services
-
-```bash
-# Frontend only (http://localhost:3000)
-pnpm frontend:dev
-
-# API only (http://localhost:3001)
-pnpm api:dev
-
-# Indexer only
-pnpm indexer:dev
-```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Project Structure
 
 ```
-block-explorer-flow/
-├── packages/
-│   ├── frontend/          # React + Vite + Ant Design
-│   ├── api/               # Express API gateway
-│   └── indexer/           # Ponder.sh indexer
-├── docker-compose.yml     # PostgreSQL, Redis
-├── package.json           # pnpm workspace root
-└── turbo.json             # Monorepo config
+flow-explorer/
+├── src/
+│   ├── app/                 # Next.js App Router pages
+│   │   ├── page.tsx         # Home - latest blocks
+│   │   ├── blocks/          # Blocks list
+│   │   ├── block/[number]/  # Block details
+│   │   ├── tx/[hash]/       # Transaction details
+│   │   └── account/[addr]/  # Account details
+│   ├── components/          # React components
+│   └── lib/
+│       ├── rpc.ts           # viem client for Flow EVM
+│       ├── ponder.ts        # Ponder GraphQL client
+│       └── chains.ts        # Chain definitions
+├── ponder/                  # Ponder indexer (separate deploy)
+│   ├── ponder.config.ts
+│   ├── ponder.schema.ts
+│   └── src/index.ts
+└── package.json
 ```
 
-## API Endpoints
+## Deployment
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/blocks` | Get latest blocks |
-| `GET /api/blocks/:id` | Get block by number or hash |
-| `GET /api/blocks/:id/transactions` | Get block transactions |
-| `GET /api/transactions/:hash` | Get transaction details |
-| `GET /api/accounts/:address` | Get account info |
-| `GET /api/search?q=...` | Universal search |
+### Next.js (Vercel)
 
-## Configuration
+| Setting | Value |
+|---------|-------|
+| Framework | Next.js |
+| Build Command | `npm run build` |
+| Output Directory | `.next` |
 
-All services can be configured via environment variables:
+Environment variables:
+- `NEXT_PUBLIC_PONDER_URL` - Ponder GraphQL endpoint (optional)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `FLOW_EVM_RPC_URL` | `https://mainnet.evm.nodes.onflow.org` | Flow EVM RPC endpoint |
-| `DATABASE_URL` | `postgresql://...` | PostgreSQL connection string |
-| `REDIS_URL` | `redis://localhost:6379` | Redis connection string |
-| `API_PORT` | `3001` | API server port |
-| `VITE_API_URL` | `/api` | Frontend API base URL |
+### Ponder (Railway)
+
+Deploy the `ponder/` directory separately:
+
+```bash
+cd ponder
+npm install
+npm start
+```
+
+Environment variables:
+- `DATABASE_URL` - PostgreSQL connection string
+- `FLOW_EVM_RPC_URL` - Flow EVM RPC (default: mainnet)
+
+## Features
+
+- Real-time block updates via viem RPC
+- Historical data via Ponder indexer (when running)
+- Block, transaction, and account details
+- Search by block number, tx hash, or address
+- Network switcher (Mainnet/Testnet)
+- Dark theme with Flow branding
 
 ## Networks
 
-- **Mainnet**: Chain ID 747
-- **Testnet**: Chain ID 545
-
-Switch networks using the dropdown in the header.
+| Network | Chain ID | RPC URL |
+|---------|----------|---------|
+| Mainnet | 747 | https://mainnet.evm.nodes.onflow.org |
+| Testnet | 545 | https://testnet.evm.nodes.onflow.org |
 
 ## License
 

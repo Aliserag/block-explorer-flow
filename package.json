@@ -1,22 +1,32 @@
 {
-  "name": "block-explorer-flow",
+  "name": "flow-explorer",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "start": "turbo start",
-    "lint": "turbo lint",
-    "clean": "turbo clean && rm -rf node_modules",
-    "db:up": "docker-compose up -d postgres redis",
-    "db:down": "docker-compose down",
-    "indexer:dev": "pnpm --filter indexer dev",
-    "api:dev": "pnpm --filter api dev",
-    "frontend:dev": "pnpm --filter frontend dev"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "ponder:dev": "ponder dev",
+    "ponder:start": "ponder start"
+  },
+  "dependencies": {
+    "@ponder/core": "^0.7.17",
+    "@tanstack/react-query": "^5.60.0",
+    "antd": "^5.22.0",
+    "@ant-design/icons": "^5.5.0",
+    "@ant-design/nextjs-registry": "^1.0.0",
+    "dayjs": "^1.11.13",
+    "framer-motion": "^11.11.0",
+    "next": "^14.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "viem": "^2.21.0"
   },
   "devDependencies": {
-    "turbo": "^2.3.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
     "typescript": "^5.7.0"
   }
 }
