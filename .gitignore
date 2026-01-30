@@ -34,3 +34,5 @@ coverage/
 # Firebase
 firebase-debug.log
 .firebase/
+.vercel
+.env*.local

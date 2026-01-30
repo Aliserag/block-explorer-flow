@@ -92,6 +92,61 @@ export async function getCode(address: Address, network: NetworkId = "mainnet") 
   return code ?? "0x";
 }
 
+// Scan recent blocks for transactions involving an address
+export async function getRecentTransactionsForAddress(
+  address: Address,
+  maxBlocks: number = 500,
+  network: NetworkId = "mainnet"
+): Promise<Array<{ hash: string; from: string; to: string | null; blockNumber: string; value: string }>> {
+  const client = getClient(network);
+  const latestBlock = await client.getBlockNumber();
+  const addressLower = address.toLowerCase();
+
+  const transactions: Array<{ hash: string; from: string; to: string | null; blockNumber: string; value: string }> = [];
+
+  // Fetch blocks in batches
+  const batchSize = 50;
+  const batches = Math.ceil(maxBlocks / batchSize);
+
+  for (let batch = 0; batch < batches && transactions.length < 25; batch++) {
+    const startBlock = latestBlock - BigInt(batch * batchSize);
+    const promises = Array.from({ length: batchSize }, (_, i) => {
+      const blockNum = startBlock - BigInt(i);
+      if (blockNum < 0n) return null;
+      return client.getBlock({ blockNumber: blockNum, includeTransactions: true }).catch(() => null);
+    });
+
+    const blocks = await Promise.all(promises);
+
+    for (const block of blocks) {
+      if (!block || !block.transactions) continue;
+
+      for (const tx of block.transactions) {
+        if (typeof tx === "object" && tx !== null) {
+          const txFrom = (tx.from || "").toLowerCase();
+          const txTo = (tx.to || "").toLowerCase();
+
+          if (txFrom === addressLower || txTo === addressLower) {
+            transactions.push({
+              hash: tx.hash,
+              from: tx.from,
+              to: tx.to || null,
+              blockNumber: block.number?.toString() || "0",
+              value: tx.value?.toString() || "0",
+            });
+
+            if (transactions.length >= 25) break;
+          }
+        }
+      }
+
+      if (transactions.length >= 25) break;
+    }
+  }
+
+  return transactions;
+}
+
 // Format helpers
 export function formatBlock(block: NonNullable<Awaited<ReturnType<typeof getBlock>>>) {
   return {

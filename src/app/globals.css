@@ -166,3 +166,86 @@ a:hover {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card) 0%,
+    var(--bg-card-hover) 50%,
+    var(--bg-card) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: block !important; }
+
+  .container {
+    padding: 0 var(--space-md);
+  }
+
+  .main-content {
+    padding: var(--space-lg) 0;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}
+
+/* Responsive grid */
+.responsive-grid {
+  display: grid;
+  gap: var(--space-lg);
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .responsive-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ant Design Drawer overrides */
+.ant-drawer-content {
+  background: var(--bg-primary) !important;
+}
+
+.ant-drawer-header {
+  background: var(--bg-secondary) !important;
+  border-bottom-color: var(--border-subtle) !important;
+}
+
+.ant-drawer-header-title {
+  color: var(--text-primary) !important;
+}
+
+.ant-drawer-close {
+  color: var(--text-secondary) !important;
+}
+
+.ant-drawer-body {
+  background: var(--bg-primary) !important;
+}
+
+/* Block card hover effect */
+.block-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--flow-green) !important;
+  box-shadow: 0 4px 12px rgba(0, 239, 139, 0.1);
+}

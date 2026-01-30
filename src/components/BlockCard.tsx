@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -13,7 +15,7 @@ interface Block {
 }
 
 export default function BlockCard({ block }: { block: Block }) {
-  const timeAgo = block.timestampDate ? dayjs(block.timestampDate).fromNow() : "—";
+  const timeAgo = block.timestampDate ? dayjs(block.timestampDate).fromNow() : "-";
 
   return (
     <Link
@@ -24,8 +26,9 @@ export default function BlockCard({ block }: { block: Block }) {
         border: "1px solid var(--border-subtle)",
         borderRadius: "var(--radius-lg)",
         padding: "var(--space-lg)",
-        transition: "all 0.2s",
+        transition: "all 0.2s ease",
       }}
+      className="block-card"
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-lg)" }}>
         <div
@@ -78,7 +81,7 @@ export default function BlockCard({ block }: { block: Block }) {
           </div>
         </div>
 
-        <div style={{ color: "var(--text-muted)", fontSize: 20 }}>→</div>
+        <div style={{ color: "var(--text-muted)", fontSize: 20 }}>&#8594;</div>
       </div>
     </Link>
   );

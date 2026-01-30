@@ -19,6 +19,11 @@ export const flowEvmMainnet = defineChain({
       url: "https://evm.flowscan.io",
     },
   },
+  contracts: {
+    multicall3: {
+      address: "0xcA11bde05977b3631167028862bE2a173976CA11",
+    },
+  },
 });
 
 export const flowEvmTestnet = defineChain({
@@ -38,6 +43,11 @@ export const flowEvmTestnet = defineChain({
     default: {
       name: "Flowscan Testnet",
       url: "https://evm-testnet.flowscan.io",
+    },
+  },
+  contracts: {
+    multicall3: {
+      address: "0xcA11bde05977b3631167028862bE2a173976CA11",
     },
   },
   testnet: true,

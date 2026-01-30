@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Input, Select, message } from "antd";
+import { Input, Select, Button, message } from "antd";
+import { MenuOutlined } from "@ant-design/icons";
 import { useState } from "react";
+import MobileNav, { openMobileNav } from "./MobileNav";
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -104,8 +106,8 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Search */}
-          <div style={{ flex: 1, maxWidth: 600 }}>
+          {/* Search - Desktop only */}
+          <div className="desktop-only" style={{ flex: 1, maxWidth: 600 }}>
             <Input.Search
               placeholder="Search by address, tx hash, or block number..."
               value={searchQuery}
@@ -118,56 +120,78 @@ export default function Header() {
             />
           </div>
 
-          {/* Network Selector */}
-          <Select
-            value={network}
-            onChange={setNetwork}
-            style={{ width: 160 }}
-            options={[
-              {
-                value: "mainnet",
-                label: (
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        background: "var(--flow-green)",
-                      }}
-                    />
-                    Mainnet
-                  </span>
-                ),
-              },
-              {
-                value: "testnet",
-                label: (
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        background: "var(--status-pending)",
-                      }}
-                    />
-                    Testnet
-                  </span>
-                ),
-              },
-            ]}
+          {/* Network Selector - Desktop only */}
+          <div className="desktop-only">
+            <Select
+              value={network}
+              onChange={setNetwork}
+              style={{ width: 160 }}
+              options={[
+                {
+                  value: "mainnet",
+                  label: (
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background: "var(--flow-green)",
+                        }}
+                      />
+                      Mainnet
+                    </span>
+                  ),
+                },
+                {
+                  value: "testnet",
+                  label: (
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background: "var(--status-pending)",
+                        }}
+                      />
+                      Testnet
+                    </span>
+                  ),
+                },
+              ]}
+            />
+          </div>
+
+          {/* Mobile Menu Button */}
+          <Button
+            type="text"
+            icon={<MenuOutlined style={{ fontSize: 20, color: "var(--text-primary)" }} />}
+            onClick={openMobileNav}
+            className="mobile-only"
+            style={{ padding: "var(--space-sm)" }}
+          />
+
+          {/* Mobile Navigation Drawer */}
+          <MobileNav
+            network={network}
+            onNetworkChange={setNetwork}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearch={handleSearch}
+            isSearching={isSearching}
           />
         </div>
       </div>
 
-      {/* Nav */}
-      <nav style={{ background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-subtle)" }}>
+      {/* Nav - Desktop only */}
+      <nav className="desktop-only" style={{ background: "var(--bg-tertiary)", borderBottom: "1px solid var(--border-subtle)" }}>
         <div className="container">
           <div style={{ display: "flex", gap: "var(--space-md)" }}>
             {[
               { path: "/", label: "Home" },
               { path: "/blocks", label: "Blocks" },
+              { path: "/analytics", label: "Analytics" },
             ].map(({ path, label }) => {
               const isActive = path === "/" ? pathname === "/" : pathname.startsWith(path);
               return (
