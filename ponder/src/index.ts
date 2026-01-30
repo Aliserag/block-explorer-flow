@@ -37,14 +37,21 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
   const { db, client } = context;
   const block = event.block;
 
-  // Ponder block events don't include transaction data, so fetch using our dedicated client
-  const fullBlock = await rpcClient.getBlock({
-    blockNumber: block.number,
-    includeTransactions: true,
-  });
+  // Try to fetch the full block with transactions
+  let txList: Array<unknown> = [];
+  let transactionCount = 0;
 
-  const txList = fullBlock.transactions ?? [];
-  const transactionCount = Array.isArray(txList) ? txList.length : 0;
+  try {
+    const fullBlock = await rpcClient.getBlock({
+      blockNumber: block.number,
+      includeTransactions: true,
+    });
+    txList = fullBlock.transactions ?? [];
+    transactionCount = Array.isArray(txList) ? txList.length : 0;
+  } catch (err) {
+    // If RPC fetch fails, continue with just block data
+    console.error(`Failed to fetch block ${block.number} transactions:`, err);
+  }
 
   // Insert block
   await db.insert(blocks).values({
