@@ -1,0 +1,22 @@
+{
+  "name": "block-explorer-flow",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "start": "turbo start",
+    "lint": "turbo lint",
+    "clean": "turbo clean && rm -rf node_modules",
+    "db:up": "docker-compose up -d postgres redis",
+    "db:down": "docker-compose down",
+    "indexer:dev": "pnpm --filter indexer dev",
+    "api:dev": "pnpm --filter api dev",
+    "frontend:dev": "pnpm --filter frontend dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  }
+}
