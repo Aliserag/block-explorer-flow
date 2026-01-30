@@ -31,8 +31,13 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
   const { db, client } = context;
   const block = event.block;
 
-  // Get transaction count safely
-  const txList = block.transactions ?? [];
+  // Ponder block events don't include transaction data, so fetch the full block
+  const fullBlock = await client.getBlock({
+    blockNumber: block.number,
+    includeTransactions: true,
+  });
+
+  const txList = fullBlock.transactions ?? [];
   const transactionCount = Array.isArray(txList) ? txList.length : 0;
 
   // Insert block
