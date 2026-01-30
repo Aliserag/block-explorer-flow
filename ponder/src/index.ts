@@ -59,10 +59,46 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
   const fromAddresses = new Set<string>();
   const toAddresses = new Set<string>();
 
-  // Process transactions (skip if no transactions or only hashes)
+  // Process transactions - fetch full data if we only have hashes
   for (let i = 0; i < transactionCount; i++) {
-    const tx = txList[i];
-    if (typeof tx === "string" || !tx) continue;
+    const txData = txList[i];
+    if (!txData) continue;
+
+    // If we only have the hash, fetch the full transaction
+    let tx: {
+      hash: `0x${string}`;
+      from: `0x${string}`;
+      to: `0x${string}` | null;
+      value: bigint;
+      gas: bigint;
+      gasPrice: bigint | null;
+      input: `0x${string}`;
+      nonce: number;
+      type: string | number;
+    };
+
+    if (typeof txData === "string") {
+      // txData is just a hash, fetch full transaction
+      try {
+        const fullTx = await client.getTransaction({ hash: txData as `0x${string}` });
+        tx = {
+          hash: fullTx.hash,
+          from: fullTx.from,
+          to: fullTx.to ?? null,
+          value: fullTx.value,
+          gas: fullTx.gas,
+          gasPrice: fullTx.gasPrice ?? null,
+          input: fullTx.input,
+          nonce: fullTx.nonce,
+          type: fullTx.type ?? 0,
+        };
+      } catch {
+        // Can't fetch transaction, skip it
+        continue;
+      }
+    } else {
+      tx = txData as typeof tx;
+    }
 
     // Get receipt for gas used and status
     let gasUsed: bigint | null = null;
