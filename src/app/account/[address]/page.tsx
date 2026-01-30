@@ -31,9 +31,9 @@ export default async function AccountPage({ params }: { params: Promise<{ addres
   }
 
   // If Ponder didn't return data, scan recent blocks via RPC
-  // Scan 5000 blocks (~1.5 hours at Flow's ~1 block/sec)
+  // Scan 1000 blocks (~17 min) to avoid rate limits
   if (txHistory.length === 0) {
-    const recentTxs = await getRecentTransactionsForAddress(addr, 5000);
+    const recentTxs = await getRecentTransactionsForAddress(addr, 1000);
     txHistory = recentTxs.map((tx) => ({
       hash: tx.hash,
       from: tx.from,

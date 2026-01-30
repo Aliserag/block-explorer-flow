@@ -1,15 +1,21 @@
 import { createPublicClient, http, formatEther, type Address, type Hex } from "viem";
 import { chains, type NetworkId } from "./chains";
 
-// Create clients for each network
+// Create clients for each network with retry logic
 const clients = {
   mainnet: createPublicClient({
     chain: chains.mainnet,
-    transport: http(process.env.NEXT_PUBLIC_FLOW_RPC_URL ?? chains.mainnet.rpcUrls.default.http[0]),
+    transport: http(process.env.NEXT_PUBLIC_FLOW_RPC_URL ?? chains.mainnet.rpcUrls.default.http[0], {
+      retryCount: 3,
+      retryDelay: 1000,
+    }),
   }),
   testnet: createPublicClient({
     chain: chains.testnet,
-    transport: http(chains.testnet.rpcUrls.default.http[0]),
+    transport: http(chains.testnet.rpcUrls.default.http[0], {
+      retryCount: 3,
+      retryDelay: 1000,
+    }),
   }),
 };
 
@@ -95,7 +101,7 @@ export async function getCode(address: Address, network: NetworkId = "mainnet") 
 // Scan recent blocks for transactions involving an address
 export async function getRecentTransactionsForAddress(
   address: Address,
-  maxBlocks: number = 10000, // ~3 hours at 1 block/sec
+  maxBlocks: number = 1000, // ~17 min at 1 block/sec
   network: NetworkId = "mainnet"
 ): Promise<Array<{ hash: string; from: string; to: string | null; blockNumber: string; value: string }>> {
   const client = getClient(network);
@@ -104,11 +110,14 @@ export async function getRecentTransactionsForAddress(
 
   const transactions: Array<{ hash: string; from: string; to: string | null; blockNumber: string; value: string }> = [];
 
-  // Fetch blocks in larger batches for efficiency
-  const batchSize = 100;
+  // Fetch blocks in smaller batches to avoid rate limits
+  const batchSize = 20;
   const maxBatches = Math.ceil(maxBlocks / batchSize);
 
-  for (let batch = 0; batch < maxBatches && transactions.length < 50; batch++) {
+  for (let batch = 0; batch < maxBatches && transactions.length < 25; batch++) {
+    // Add delay between batches to avoid rate limits
+    if (batch > 0) await new Promise(r => setTimeout(r, 100));
+
     const startBlock = latestBlock - BigInt(batch * batchSize);
     const promises = Array.from({ length: batchSize }, (_, i) => {
       const blockNum = startBlock - BigInt(i);
@@ -135,7 +144,7 @@ export async function getRecentTransactionsForAddress(
               value: tx.value?.toString() || "0",
             });
 
-            if (transactions.length >= 50) break;
+            if (transactions.length >= 25) break;
           }
         }
       }

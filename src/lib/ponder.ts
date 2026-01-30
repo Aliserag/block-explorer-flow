@@ -181,13 +181,12 @@ export async function getIndexedBlock(number: string) {
 
 // ============ Transaction Queries ============
 
-export async function getAccountTransactions(address: string, limit = 20, offset = 0) {
+export async function getAccountTransactions(address: string, limit = 20) {
   const result = await query<{ transactionss: { items: IndexedTransaction[] } }>(`
-    query GetAccountTransactions($address: String!, $limit: Int!, $offset: Int!) {
+    query GetAccountTransactions($address: String!, $limit: Int!) {
       transactionss(
-        where: { or: [{ from: $address }, { to: $address }] }
+        where: { OR: [{ from: $address }, { to: $address }] }
         limit: $limit
-        offset: $offset
         orderBy: "timestamp"
         orderDirection: "desc"
       ) {
@@ -207,7 +206,7 @@ export async function getAccountTransactions(address: string, limit = 20, offset
         }
       }
     }
-  `, { address: address.toLowerCase(), limit, offset });
+  `, { address: address.toLowerCase(), limit });
 
   return result?.transactionss?.items ?? [];
 }
@@ -388,15 +387,13 @@ export async function getTokenTransfers(
 
 export async function getAccountTokenTransfers(
   address: string,
-  limit = 25,
-  offset = 0
+  limit = 25
 ): Promise<IndexedTokenTransfer[]> {
   const result = await query<{ tokenTransferss: { items: IndexedTokenTransfer[] } }>(`
-    query GetAccountTokenTransfers($address: String!, $limit: Int!, $offset: Int!) {
+    query GetAccountTokenTransfers($address: String!, $limit: Int!) {
       tokenTransferss(
-        where: { or: [{ from: $address }, { to: $address }] }
+        where: { OR: [{ from: $address }, { to: $address }] }
         limit: $limit
-        offset: $offset
         orderBy: "blockNumber"
         orderDirection: "desc"
       ) {
@@ -413,7 +410,7 @@ export async function getAccountTokenTransfers(
         }
       }
     }
-  `, { address: address.toLowerCase(), limit, offset });
+  `, { address: address.toLowerCase(), limit });
 
   return result?.tokenTransferss?.items ?? [];
 }
