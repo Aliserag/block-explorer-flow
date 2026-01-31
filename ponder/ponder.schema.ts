@@ -102,6 +102,73 @@ export const accountTokenBalances = onchainTable("account_token_balances", (t) =
   balanceIdx: index().on(table.balance),
 }));
 
+// ============ NFT Tables ============
+
+export const nftCollections = onchainTable("nft_collections", (t) => ({
+  address: t.hex().primaryKey(),
+  name: t.text(),
+  symbol: t.text(),
+  standard: t.text().notNull(), // "ERC721" or "ERC1155"
+  totalSupply: t.integer(),
+  transferCount: t.integer().notNull(),
+  holderCount: t.integer().notNull(),
+  firstSeenBlock: t.bigint().notNull(),
+  firstSeenTimestamp: t.bigint().notNull(),
+}), (table) => ({
+  standardIdx: index().on(table.standard),
+  transferCountIdx: index().on(table.transferCount),
+}));
+
+export const nfts = onchainTable("nfts", (t) => ({
+  id: t.text().primaryKey(), // collectionAddress-tokenId
+  collectionAddress: t.hex().notNull(),
+  tokenId: t.bigint().notNull(),
+  owner: t.hex().notNull(),
+  tokenUri: t.text(),
+  mintedBlock: t.bigint().notNull(),
+  mintedTimestamp: t.bigint().notNull(),
+  lastTransferBlock: t.bigint().notNull(),
+  lastTransferTimestamp: t.bigint().notNull(),
+  transferCount: t.integer().notNull(),
+}), (table) => ({
+  collectionIdx: index().on(table.collectionAddress),
+  ownerIdx: index().on(table.owner),
+  tokenIdIdx: index().on(table.tokenId),
+}));
+
+export const nftTransfers = onchainTable("nft_transfers", (t) => ({
+  id: t.text().primaryKey(), // txHash-logIndex
+  transactionHash: t.hex().notNull(),
+  blockNumber: t.bigint().notNull(),
+  timestamp: t.bigint().notNull(),
+  collectionAddress: t.hex().notNull(),
+  tokenId: t.bigint().notNull(),
+  from: t.hex().notNull(),
+  to: t.hex().notNull(),
+  operator: t.hex(), // For ERC-1155
+  value: t.bigint(), // For ERC-1155 (quantity)
+  logIndex: t.integer().notNull(),
+}), (table) => ({
+  collectionIdx: index().on(table.collectionAddress),
+  tokenIdIdx: index().on(table.tokenId),
+  fromIdx: index().on(table.from),
+  toIdx: index().on(table.to),
+  blockIdx: index().on(table.blockNumber),
+}));
+
+export const nftOwnership = onchainTable("nft_ownership", (t) => ({
+  id: t.text().primaryKey(), // ownerAddress-collectionAddress-tokenId
+  ownerAddress: t.hex().notNull(),
+  collectionAddress: t.hex().notNull(),
+  tokenId: t.bigint().notNull(),
+  balance: t.bigint().notNull(), // 1 for ERC-721, variable for ERC-1155
+  lastUpdatedBlock: t.bigint().notNull(),
+  lastUpdatedTimestamp: t.bigint().notNull(),
+}), (table) => ({
+  ownerIdx: index().on(table.ownerAddress),
+  collectionIdx: index().on(table.collectionAddress),
+}));
+
 // ============ Contract Tables ============
 
 export const contracts = onchainTable("contracts", (t) => ({

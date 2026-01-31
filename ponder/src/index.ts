@@ -9,6 +9,10 @@ import {
   contracts,
   dailyStats,
   hourlyStats,
+  nftCollections,
+  nfts,
+  nftTransfers,
+  nftOwnership,
 } from "../ponder.schema";
 import { createPublicClient, http, erc20Abi } from "viem";
 
@@ -417,4 +421,336 @@ ponder.on("ERC20:Transfer", async ({ event, context }) => {
   await db.update(hourlyStats, { hour: hourKey }).set((row) => ({
     tokenTransferCount: row.tokenTransferCount + 1,
   }));
+});
+
+// ERC-721 Transfer event handler - indexes NFT transfers
+ponder.on("ERC721:Transfer", async ({ event, context }) => {
+  const { db, client } = context;
+  const { from, to, tokenId } = event.args;
+  const collectionAddress = event.log.address;
+  const blockNumber = event.block.number;
+  const timestamp = event.block.timestamp;
+  const zeroAddress = "0x0000000000000000000000000000000000000000" as `0x${string}`;
+  const isMint = from.toLowerCase() === zeroAddress.toLowerCase();
+
+  // Insert transfer record
+  const transferId = `${event.transaction.hash}-${event.log.logIndex}`;
+  await db.insert(nftTransfers).values({
+    id: transferId,
+    transactionHash: event.transaction.hash,
+    blockNumber,
+    timestamp,
+    collectionAddress,
+    tokenId,
+    from,
+    to,
+    operator: null,
+    value: 1n,
+    logIndex: event.log.logIndex,
+  }).onConflictDoNothing();
+
+  // Discover/update collection
+  const existingCollection = await db.find(nftCollections, { address: collectionAddress });
+
+  if (!existingCollection) {
+    // New collection discovered - try to fetch metadata
+    let name: string | null = null;
+    let symbol: string | null = null;
+
+    try {
+      const erc721MetadataAbi = [
+        { type: "function", name: "name", inputs: [], outputs: [{ type: "string" }], stateMutability: "view" },
+        { type: "function", name: "symbol", inputs: [], outputs: [{ type: "string" }], stateMutability: "view" },
+      ] as const;
+
+      const [nameResult, symbolResult] = await Promise.allSettled([
+        client.readContract({ address: collectionAddress, abi: erc721MetadataAbi, functionName: "name" }),
+        client.readContract({ address: collectionAddress, abi: erc721MetadataAbi, functionName: "symbol" }),
+      ]);
+
+      if (nameResult.status === "fulfilled") name = nameResult.value as string;
+      if (symbolResult.status === "fulfilled") symbol = symbolResult.value as string;
+    } catch {
+      // Non-standard NFT, leave metadata null
+    }
+
+    await db.insert(nftCollections).values({
+      address: collectionAddress,
+      name,
+      symbol,
+      standard: "ERC721",
+      totalSupply: null,
+      transferCount: 1,
+      holderCount: isMint ? 1 : 0,
+      firstSeenBlock: blockNumber,
+      firstSeenTimestamp: timestamp,
+    }).onConflictDoNothing();
+  } else {
+    // Update transfer count
+    await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
+      transferCount: row.transferCount + 1,
+      holderCount: isMint ? row.holderCount + 1 : row.holderCount,
+    }));
+  }
+
+  // Update/create NFT record
+  const nftId = `${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
+  const existingNft = await db.find(nfts, { id: nftId });
+
+  if (!existingNft) {
+    // New NFT - try to get tokenURI
+    let tokenUri: string | null = null;
+    try {
+      const tokenUriAbi = [
+        { type: "function", name: "tokenURI", inputs: [{ type: "uint256", name: "tokenId" }], outputs: [{ type: "string" }], stateMutability: "view" },
+      ] as const;
+      tokenUri = await client.readContract({ address: collectionAddress, abi: tokenUriAbi, functionName: "tokenURI", args: [tokenId] });
+    } catch {
+      // tokenURI not available
+    }
+
+    await db.insert(nfts).values({
+      id: nftId,
+      collectionAddress,
+      tokenId,
+      owner: to,
+      tokenUri,
+      mintedBlock: blockNumber,
+      mintedTimestamp: timestamp,
+      lastTransferBlock: blockNumber,
+      lastTransferTimestamp: timestamp,
+      transferCount: 1,
+    }).onConflictDoNothing();
+  } else {
+    // Update NFT owner
+    await db.update(nfts, { id: nftId }).set({
+      owner: to,
+      lastTransferBlock: blockNumber,
+      lastTransferTimestamp: timestamp,
+      transferCount: existingNft.transferCount + 1,
+    });
+  }
+
+  // Update ownership records
+  // Remove from sender (if not mint)
+  if (!isMint) {
+    const fromOwnershipId = `${from.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
+    await db.update(nftOwnership, { id: fromOwnershipId }).set({
+      balance: 0n,
+      lastUpdatedBlock: blockNumber,
+      lastUpdatedTimestamp: timestamp,
+    });
+  }
+
+  // Add to receiver (if not burn)
+  const isBurn = to.toLowerCase() === zeroAddress.toLowerCase();
+  if (!isBurn) {
+    const toOwnershipId = `${to.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
+    const existingOwnership = await db.find(nftOwnership, { id: toOwnershipId });
+
+    if (existingOwnership) {
+      await db.update(nftOwnership, { id: toOwnershipId }).set({
+        balance: 1n,
+        lastUpdatedBlock: blockNumber,
+        lastUpdatedTimestamp: timestamp,
+      });
+    } else {
+      await db.insert(nftOwnership).values({
+        id: toOwnershipId,
+        ownerAddress: to,
+        collectionAddress,
+        tokenId,
+        balance: 1n,
+        lastUpdatedBlock: blockNumber,
+        lastUpdatedTimestamp: timestamp,
+      }).onConflictDoNothing();
+    }
+  }
+});
+
+// ERC-1155 TransferSingle event handler
+ponder.on("ERC1155:TransferSingle", async ({ event, context }) => {
+  const { db, client } = context;
+  const { operator, from, to, id: tokenId, value } = event.args;
+  const collectionAddress = event.log.address;
+  const blockNumber = event.block.number;
+  const timestamp = event.block.timestamp;
+  const zeroAddress = "0x0000000000000000000000000000000000000000" as `0x${string}`;
+  const isMint = from.toLowerCase() === zeroAddress.toLowerCase();
+
+  // Insert transfer record
+  const transferId = `${event.transaction.hash}-${event.log.logIndex}`;
+  await db.insert(nftTransfers).values({
+    id: transferId,
+    transactionHash: event.transaction.hash,
+    blockNumber,
+    timestamp,
+    collectionAddress,
+    tokenId,
+    from,
+    to,
+    operator,
+    value,
+    logIndex: event.log.logIndex,
+  }).onConflictDoNothing();
+
+  // Discover/update collection
+  const existingCollection = await db.find(nftCollections, { address: collectionAddress });
+
+  if (!existingCollection) {
+    await db.insert(nftCollections).values({
+      address: collectionAddress,
+      name: null,
+      symbol: null,
+      standard: "ERC1155",
+      totalSupply: null,
+      transferCount: 1,
+      holderCount: isMint ? 1 : 0,
+      firstSeenBlock: blockNumber,
+      firstSeenTimestamp: timestamp,
+    }).onConflictDoNothing();
+  } else {
+    await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
+      transferCount: row.transferCount + 1,
+    }));
+  }
+
+  // Update ownership for sender
+  if (!isMint) {
+    const fromOwnershipId = `${from.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
+    const existingFromOwnership = await db.find(nftOwnership, { id: fromOwnershipId });
+
+    if (existingFromOwnership) {
+      const newBalance = existingFromOwnership.balance - value;
+      await db.update(nftOwnership, { id: fromOwnershipId }).set({
+        balance: newBalance > 0n ? newBalance : 0n,
+        lastUpdatedBlock: blockNumber,
+        lastUpdatedTimestamp: timestamp,
+      });
+    }
+  }
+
+  // Update ownership for receiver
+  const isBurn = to.toLowerCase() === zeroAddress.toLowerCase();
+  if (!isBurn) {
+    const toOwnershipId = `${to.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
+    const existingToOwnership = await db.find(nftOwnership, { id: toOwnershipId });
+
+    if (existingToOwnership) {
+      await db.update(nftOwnership, { id: toOwnershipId }).set({
+        balance: existingToOwnership.balance + value,
+        lastUpdatedBlock: blockNumber,
+        lastUpdatedTimestamp: timestamp,
+      });
+    } else {
+      await db.insert(nftOwnership).values({
+        id: toOwnershipId,
+        ownerAddress: to,
+        collectionAddress,
+        tokenId,
+        balance: value,
+        lastUpdatedBlock: blockNumber,
+        lastUpdatedTimestamp: timestamp,
+      }).onConflictDoNothing();
+
+      // Increment holder count for collection
+      await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
+        holderCount: row.holderCount + 1,
+      }));
+    }
+  }
+});
+
+// ERC-1155 TransferBatch event handler
+ponder.on("ERC1155:TransferBatch", async ({ event, context }) => {
+  const { db } = context;
+  const { operator, from, to, ids, values } = event.args;
+  const collectionAddress = event.log.address;
+  const blockNumber = event.block.number;
+  const timestamp = event.block.timestamp;
+  const zeroAddress = "0x0000000000000000000000000000000000000000" as `0x${string}`;
+  const isMint = from.toLowerCase() === zeroAddress.toLowerCase();
+  const isBurn = to.toLowerCase() === zeroAddress.toLowerCase();
+
+  // Process each token in the batch
+  for (let i = 0; i < ids.length; i++) {
+    const tokenId = ids[i];
+    const value = values[i];
+
+    // Insert transfer record
+    const transferId = `${event.transaction.hash}-${event.log.logIndex}-${i}`;
+    await db.insert(nftTransfers).values({
+      id: transferId,
+      transactionHash: event.transaction.hash,
+      blockNumber,
+      timestamp,
+      collectionAddress,
+      tokenId,
+      from,
+      to,
+      operator,
+      value,
+      logIndex: event.log.logIndex,
+    }).onConflictDoNothing();
+
+    // Update ownership for sender
+    if (!isMint) {
+      const fromOwnershipId = `${from.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
+      const existingFromOwnership = await db.find(nftOwnership, { id: fromOwnershipId });
+
+      if (existingFromOwnership) {
+        const newBalance = existingFromOwnership.balance - value;
+        await db.update(nftOwnership, { id: fromOwnershipId }).set({
+          balance: newBalance > 0n ? newBalance : 0n,
+          lastUpdatedBlock: blockNumber,
+          lastUpdatedTimestamp: timestamp,
+        });
+      }
+    }
+
+    // Update ownership for receiver
+    if (!isBurn) {
+      const toOwnershipId = `${to.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
+      const existingToOwnership = await db.find(nftOwnership, { id: toOwnershipId });
+
+      if (existingToOwnership) {
+        await db.update(nftOwnership, { id: toOwnershipId }).set({
+          balance: existingToOwnership.balance + value,
+          lastUpdatedBlock: blockNumber,
+          lastUpdatedTimestamp: timestamp,
+        });
+      } else {
+        await db.insert(nftOwnership).values({
+          id: toOwnershipId,
+          ownerAddress: to,
+          collectionAddress,
+          tokenId,
+          balance: value,
+          lastUpdatedBlock: blockNumber,
+          lastUpdatedTimestamp: timestamp,
+        }).onConflictDoNothing();
+      }
+    }
+  }
+
+  // Update collection stats once for the batch
+  const existingCollection = await db.find(nftCollections, { address: collectionAddress });
+
+  if (!existingCollection) {
+    await db.insert(nftCollections).values({
+      address: collectionAddress,
+      name: null,
+      symbol: null,
+      standard: "ERC1155",
+      totalSupply: null,
+      transferCount: ids.length,
+      holderCount: isMint ? 1 : 0,
+      firstSeenBlock: blockNumber,
+      firstSeenTimestamp: timestamp,
+    }).onConflictDoNothing();
+  } else {
+    await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
+      transferCount: row.transferCount + ids.length,
+    }));
+  }
 });
