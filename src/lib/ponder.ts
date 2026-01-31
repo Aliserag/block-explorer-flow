@@ -255,6 +255,35 @@ export async function getBlockTransactions(blockNumber: string, limit = 50) {
   return result?.transactionss?.items ?? [];
 }
 
+export async function getRecentTransactions(limit = 10): Promise<IndexedTransaction[]> {
+  const result = await query<{ transactionss: { items: IndexedTransaction[] } }>(`
+    query GetRecentTransactions($limit: Int!) {
+      transactionss(
+        limit: $limit
+        orderBy: "timestamp"
+        orderDirection: "desc"
+      ) {
+        items {
+          hash
+          blockNumber
+          from
+          to
+          value
+          gas
+          gasPrice
+          gasUsed
+          input
+          nonce
+          status
+          timestamp
+        }
+      }
+    }
+  `, { limit });
+
+  return result?.transactionss?.items ?? [];
+}
+
 // ============ Account Queries ============
 
 export async function getIndexedAccount(address: string) {
