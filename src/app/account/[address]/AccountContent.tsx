@@ -542,8 +542,9 @@ export default function AccountContent({
     },
   ];
 
-  // Add Contract tab only for contracts
-  if (isContract) {
+  // Add Contract tab only for actual contracts (not COAs)
+  const showContractTab = isContract && !isCOA(address);
+  if (showContractTab) {
     tabItems.push({
       key: "contract",
       label: (
@@ -566,7 +567,7 @@ export default function AccountContent({
             </h1>
             <Tag color={accountType.color}>{accountType.label}</Tag>
           </div>
-          {isContract && (
+          {showContractTab && (
             <Link
               href={`/contract/${address}`}
               style={{

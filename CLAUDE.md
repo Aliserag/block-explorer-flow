@@ -119,6 +119,47 @@ PONDER_START_BLOCK=0
 
 ---
 
+## Flow-Specific Concepts
+
+### COA (Cadence Owned Account)
+
+COAs are a unique Flow concept - they are EVM addresses controlled by Cadence (Flow's native smart contract language).
+
+**Key Characteristics:**
+- **Address Pattern**: COAs have many leading zeros (20+ hex zeros after `0x`)
+  - Example: `0x00000000000000000000000235F48d21dc84fFcE`
+- **Has Bytecode**: `getCode()` returns non-empty bytecode (they appear as contracts)
+- **NOT a Smart Contract**: Despite having bytecode, they are NOT traditional EVM smart contracts
+- **Bridge Accounts**: Used to bridge assets and functionality between Cadence and EVM
+
+**UI Handling:**
+- Display with green "COA" tag (not "Contract" or "EOA")
+- Do NOT show "View Contract Details" link - COAs aren't inspectable contracts
+- Do NOT show Contract tab on account page
+- Token holdings and transaction history work normally
+
+**Detection Logic** (in `AccountContent.tsx`):
+```typescript
+function isCOA(address: string): boolean {
+  const hex = address.toLowerCase().slice(2);
+  let zeroCount = 0;
+  for (const char of hex) {
+    if (char === "0") zeroCount++;
+    else break;
+  }
+  return zeroCount >= 20; // 20+ leading zeros = COA
+}
+```
+
+**Account Types Summary:**
+| Type | Tag Color | Has Bytecode | Leading Zeros | Show Contract Link |
+|------|-----------|--------------|---------------|-------------------|
+| EOA | Blue | No | Any | No |
+| Contract | Purple | Yes | Few/none | Yes |
+| COA | Green | Yes | 20+ | No |
+
+---
+
 ## Critical User Journeys (Must Work End-to-End)
 
 ### 1. "I want to verify a transaction"
@@ -296,8 +337,107 @@ Dev server: http://localhost:3001
 
 Note: FAIL statuses are expected until Ponder sync completes - these features require indexed data.
 
+---
+
+### 2026-01-31: 4-Stage Parallel Indexing Strategy
+
+#### Problem
+- Full historical indexing from block 0 takes days/weeks (54M+ blocks)
+- Users need immediate access to explorer functionality
+
+#### Solution: Parallel Multi-Stage Indexing
+
+Run 4 Ponder instances simultaneously, each indexing a different time range:
+
+| Stage | Project Name | Start Block | Time Coverage | Est. Sync Time | Status |
+|-------|--------------|-------------|---------------|----------------|--------|
+| 1 | flow-ponder (athletic-prosperity) | 54,600,000 | ~1 day | ~40 min | ✅ RUNNING |
+| 2 | ponder-week | 54,000,000 | ~7 days | ~hours | ⏳ PENDING |
+| 3 | ponder-month | 52,000,000 | ~30 days | ~1 day | ⏳ PENDING |
+| 4 | ponder-genesis | 0 | Full history | days/weeks | ⏳ PENDING |
+
+#### Switching Strategy
+1. Frontend starts pointing to Stage 1 (fastest to complete)
+2. When Stage 2 completes → Update `NEXT_PUBLIC_PONDER_URL` in Vercel → Delete Stage 1
+3. When Stage 3 completes → Update URL → Delete Stage 2
+4. When Stage 4 completes → Update URL → Delete Stage 3 → Keep Stage 4 forever
+
+#### Railway Project URLs
+```
+Stage 1 (1 day):   https://athletic-prosperity-production.up.railway.app (ACTIVE)
+Stage 2 (1 week):  https://railway.com/project/4cc50d84-480d-420f-afc6-6f36fe162377
+Stage 3 (1 month): https://railway.com/project/2819b600-eb23-49ff-bd9a-a82583a7a31b
+Stage 4 (genesis): https://railway.com/project/c3a10738-3b2b-48a8-829f-0a6b59e78fdb
+```
+
+#### Setup Instructions for New Stages
+
+For each new stage (week, month, genesis):
+
+1. **Create Railway Project** (via dashboard.railway.app):
+   - New Project → Empty Project
+   - Name: `ponder-week` / `ponder-month` / `ponder-genesis`
+
+2. **Add PostgreSQL**:
+   - New → Database → PostgreSQL
+
+3. **Add Ponder Service**:
+   - New → GitHub Repo → Select `block-explorer-flow` → Set root to `/ponder`
+
+4. **Configure Environment Variables**:
+   ```
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
+   FLOW_EVM_RPC_URL=https://mainnet.evm.nodes.onflow.org
+   PONDER_START_BLOCK=<stage-specific-block>
+   PORT=42069
+   ```
+
+5. **Generate Domain**:
+   - Settings → Networking → Generate Domain
+
+#### Cost Estimate
+- During parallel sync: ~$40-60/month (4 Postgres + 4 compute)
+- After consolidation: ~$10-20/month (1 Postgres + 1 compute)
+
+---
+
+### 2026-01-30 (continued): All 4 Stages Deployed
+
+#### Current Deployment Status (as of session end)
+
+| Stage | Project | Start Block | Public Domain | Status |
+|-------|---------|-------------|---------------|--------|
+| 1 (day) | flow-ponder | 54,600,000 | `athletic-prosperity-production.up.railway.app` | ✅ RUNNING |
+| 2 (week) | ponder-week | 54,000,000 | *(configured - check Railway)* | ✅ DEPLOYED |
+| 3 (month) | ponder-month | 52,000,000 | `block-explorer-flow-production.up.railway.app` | ✅ DEPLOYED |
+| 4 (genesis) | ponder-genesis | 0 | `block-explorer-flow-production-0468.up.railway.app` | ✅ DEPLOYED |
+
+#### Railway Project Links (for management)
+```
+Stage 1: https://railway.com/project/849bd28b-9738-48d5-9c8a-5da02eadc65c
+Stage 2: https://railway.com/project/4cc50d84-480d-420f-afc6-6f36fe162377
+Stage 3: https://railway.com/project/2819b600-eb23-49ff-bd9a-a82583a7a31b
+Stage 4: https://railway.com/project/c3a10738-3b2b-48a8-829f-0a6b59e78fdb
+```
+
+#### Environment Variables (all stages)
+```
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+FLOW_EVM_RPC_URL=https://mainnet.evm.nodes.onflow.org
+PONDER_START_BLOCK=<varies by stage>
+PORT=42069
+```
+
 #### Next Steps
-1. Wait for Ponder sync to complete (~6 min from 35.6% at time of session)
-2. After sync: most QA failures should become passes
-3. Optional: Set `PONDER_START_BLOCK=0` for full historical indexing
-4. Delete broken "Postgres" service from Railway to avoid confusion
+1. Monitor sync progress on each stage via Railway Logs
+2. When a later stage catches up to an earlier one, update `NEXT_PUBLIC_PONDER_URL` in `.env`
+3. Delete earlier stages once consolidated
+4. Final state: Only ponder-genesis remains with full historical data
+
+#### Frontend Configuration
+Currently pointing to Stage 1:
+```
+NEXT_PUBLIC_PONDER_URL=https://athletic-prosperity-production.up.railway.app
+```
+
+When ready to switch, update `.env` and redeploy to Vercel.

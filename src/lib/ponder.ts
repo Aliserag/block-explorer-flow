@@ -139,10 +139,10 @@ export interface HourlyStats {
 
 // ============ Block Queries ============
 
-export async function getIndexedBlocks(limit = 20, offset = 0) {
+export async function getIndexedBlocks(limit = 20) {
   const result = await query<{ blockss: { items: IndexedBlock[] } }>(`
-    query GetBlocks($limit: Int!, $offset: Int!) {
-      blockss(limit: $limit, offset: $offset, orderBy: "number", orderDirection: "desc") {
+    query GetBlocks($limit: Int!) {
+      blockss(limit: $limit, orderBy: "number", orderDirection: "desc") {
         items {
           number
           hash
@@ -155,39 +155,40 @@ export async function getIndexedBlocks(limit = 20, offset = 0) {
         }
       }
     }
-  `, { limit, offset });
+  `, { limit });
 
   return result?.blockss?.items ?? [];
 }
 
 export async function getIndexedBlock(number: string) {
-  const result = await query<{ block: IndexedBlock | null }>(`
+  const result = await query<{ blockss: { items: IndexedBlock[] } }>(`
     query GetBlock($number: BigInt!) {
-      block(number: $number) {
-        number
-        hash
-        parentHash
-        timestamp
-        gasUsed
-        gasLimit
-        transactionCount
-        miner
+      blockss(where: { number: $number }, limit: 1) {
+        items {
+          number
+          hash
+          parentHash
+          timestamp
+          gasUsed
+          gasLimit
+          transactionCount
+          miner
+        }
       }
     }
   `, { number });
 
-  return result?.block ?? null;
+  return result?.blockss?.items?.[0] ?? null;
 }
 
 // ============ Transaction Queries ============
 
-export async function getAccountTransactions(address: string, limit = 20, offset = 0) {
+export async function getAccountTransactions(address: string, limit = 20) {
   const result = await query<{ transactionss: { items: IndexedTransaction[] } }>(`
-    query GetAccountTransactions($address: String!, $limit: Int!, $offset: Int!) {
+    query GetAccountTransactions($address: String!, $limit: Int!) {
       transactionss(
         where: { OR: [{ from: $address }, { to: $address }] }
         limit: $limit
-        offset: $offset
         orderBy: "timestamp"
         orderDirection: "desc"
       ) {
@@ -207,21 +208,21 @@ export async function getAccountTransactions(address: string, limit = 20, offset
         }
       }
     }
-  `, { address: address.toLowerCase(), limit, offset });
+  `, { address: address.toLowerCase(), limit });
 
   return result?.transactionss?.items ?? [];
 }
 
 export async function getAccountTransactionCount(address: string): Promise<number> {
-  const result = await query<{ account: { transactionCount: number } | null }>(`
+  const result = await query<{ accounts: { transactionCount: number } | null }>(`
     query GetAccountTxCount($address: String!) {
-      account(address: $address) {
+      accounts(address: $address) {
         transactionCount
       }
     }
   `, { address: address.toLowerCase() });
 
-  return result?.account?.transactionCount ?? 0;
+  return result?.accounts?.transactionCount ?? 0;
 }
 
 export async function getBlockTransactions(blockNumber: string, limit = 50) {
@@ -257,9 +258,9 @@ export async function getBlockTransactions(blockNumber: string, limit = 50) {
 // ============ Account Queries ============
 
 export async function getIndexedAccount(address: string) {
-  const result = await query<{ account: IndexedAccount | null }>(`
+  const result = await query<{ accounts: IndexedAccount | null }>(`
     query GetAccount($address: String!) {
-      account(address: $address) {
+      accounts(address: $address) {
         address
         transactionCount
         isContract
@@ -271,7 +272,7 @@ export async function getIndexedAccount(address: string) {
     }
   `, { address: address.toLowerCase() });
 
-  return result?.account ?? null;
+  return result?.accounts ?? null;
 }
 
 // ============ Token Queries ============
@@ -328,12 +329,11 @@ export async function getTokenMetadata(addresses: string[]): Promise<IndexedToke
   return result?.tokenss?.items ?? [];
 }
 
-export async function getAllTokens(limit = 100, offset = 0): Promise<IndexedToken[]> {
+export async function getAllTokens(limit = 100): Promise<IndexedToken[]> {
   const result = await query<{ tokenss: { items: IndexedToken[] } }>(`
-    query GetAllTokens($limit: Int!, $offset: Int!) {
+    query GetAllTokens($limit: Int!) {
       tokenss(
         limit: $limit
-        offset: $offset
         orderBy: "transferCount"
         orderDirection: "desc"
       ) {
@@ -349,22 +349,20 @@ export async function getAllTokens(limit = 100, offset = 0): Promise<IndexedToke
         }
       }
     }
-  `, { limit, offset });
+  `, { limit });
 
   return result?.tokenss?.items ?? [];
 }
 
 export async function getTokenTransfers(
   tokenAddress: string,
-  limit = 25,
-  offset = 0
+  limit = 25
 ): Promise<IndexedTokenTransfer[]> {
   const result = await query<{ tokenTransferss: { items: IndexedTokenTransfer[] } }>(`
-    query GetTokenTransfers($tokenAddress: String!, $limit: Int!, $offset: Int!) {
+    query GetTokenTransfers($tokenAddress: String!, $limit: Int!) {
       tokenTransferss(
         where: { tokenAddress: $tokenAddress }
         limit: $limit
-        offset: $offset
         orderBy: "blockNumber"
         orderDirection: "desc"
       ) {
@@ -381,7 +379,7 @@ export async function getTokenTransfers(
         }
       }
     }
-  `, { tokenAddress: tokenAddress.toLowerCase(), limit, offset });
+  `, { tokenAddress: tokenAddress.toLowerCase(), limit });
 
   return result?.tokenTransferss?.items ?? [];
 }
@@ -418,12 +416,11 @@ export async function getAccountTokenTransfers(
 
 // ============ Contract Queries ============
 
-export async function getRecentContracts(limit = 20, offset = 0): Promise<IndexedContract[]> {
+export async function getRecentContracts(limit = 20): Promise<IndexedContract[]> {
   const result = await query<{ contractss: { items: IndexedContract[] } }>(`
-    query GetRecentContracts($limit: Int!, $offset: Int!) {
+    query GetRecentContracts($limit: Int!) {
       contractss(
         limit: $limit
-        offset: $offset
         orderBy: "blockNumber"
         orderDirection: "desc"
       ) {
@@ -437,15 +434,15 @@ export async function getRecentContracts(limit = 20, offset = 0): Promise<Indexe
         }
       }
     }
-  `, { limit, offset });
+  `, { limit });
 
   return result?.contractss?.items ?? [];
 }
 
 export async function getContract(address: string): Promise<IndexedContract | null> {
-  const result = await query<{ contract: IndexedContract | null }>(`
+  const result = await query<{ contracts: IndexedContract | null }>(`
     query GetContract($address: String!) {
-      contract(address: $address) {
+      contracts(address: $address) {
         address
         deployerAddress
         deploymentTxHash
@@ -456,7 +453,7 @@ export async function getContract(address: string): Promise<IndexedContract | nu
     }
   `, { address: address.toLowerCase() });
 
-  return result?.contract ?? null;
+  return result?.contracts ?? null;
 }
 
 export async function getContractsByDeployer(

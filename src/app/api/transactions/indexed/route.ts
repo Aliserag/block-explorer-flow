@@ -26,7 +26,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
   const limit = parseInt(searchParams.get("limit") || "25", 10);
-  const offset = parseInt(searchParams.get("offset") || "0", 10);
+  // Note: Ponder doesn't support offset-based pagination
+  // For now, we only return the first page of results
+  // TODO: Implement cursor-based pagination for full support
 
   if (!address) {
     return NextResponse.json(
@@ -50,7 +52,7 @@ export async function GET(request: Request) {
   try {
     // Fetch transactions and total count in parallel
     const [transactions, totalCount] = await Promise.all([
-      getAccountTransactions(address, limit, offset),
+      getAccountTransactions(address, limit),
       getAccountTransactionCount(address),
     ]);
 
