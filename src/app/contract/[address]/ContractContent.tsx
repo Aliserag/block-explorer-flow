@@ -126,7 +126,7 @@ export default function ContractContent({
 
           <DataField label="Bytecode Size" value={`${bytecodeSize.toLocaleString()} bytes`} />
 
-          {verifiedContract && (
+          {currentVerifiedContract && (
             <>
               <DataField label="Contract Name" value={currentVerifiedContract.name} />
               <DataField label="Compiler" value={currentVerifiedContract.compiler} />
@@ -390,7 +390,7 @@ export default function ContractContent({
 
   // Write Contract Tab
   const WriteContractTab = () => {
-    if (!verifiedContract || !currentVerifiedContract.abi || currentVerifiedContract.abi.length === 0) {
+    if (!currentVerifiedContract || !currentVerifiedContract.abi || currentVerifiedContract.abi.length === 0) {
       return (
         <div
           style={{
@@ -521,7 +521,7 @@ export default function ContractContent({
 
   // ABI Tab
   const ABITab = () => {
-    if (!verifiedContract || !currentVerifiedContract.abi || currentVerifiedContract.abi.length === 0) {
+    if (!currentVerifiedContract || !currentVerifiedContract.abi || currentVerifiedContract.abi.length === 0) {
       return (
         <div
           style={{

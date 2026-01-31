@@ -234,7 +234,7 @@ export async function getVyperVersions(): Promise<string[]> {
       return data.compilerVersions;
     }
 
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data) ? [...data] : [];
   } catch (error) {
     console.error('Failed to fetch Vyper versions:', error);
     return [];

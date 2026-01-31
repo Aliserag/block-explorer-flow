@@ -42,7 +42,7 @@ export default async function BlocksPage({ searchParams }: BlocksPageProps) {
             marginBottom: "var(--space-xs)",
           }}
         >
-          FLOW<span style={{ color: "var(--flow-green)", animation: "cursorBlink 1s step-end infinite" }}>_</span>BLOCKS
+          <span style={{ color: "var(--flow-green)", animation: "cursorBlink 1s step-end infinite" }}>_</span>BLOCKS
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
           Showing blocks #{fromBlock.toLocaleString()} to #{toBlock.toLocaleString()} of{" "}

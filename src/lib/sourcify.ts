@@ -8,8 +8,9 @@ async function getLocalVerifiedContract(address: string) {
   if (typeof window !== 'undefined') {
     return null; // Client-side: skip local DB check
   }
-  const { getVerifiedContract } = await import('./verified-contracts-db');
-  return getVerifiedContract(address);
+  // Use webpackIgnore comment to prevent bundling in client
+  const dbModule = await import(/* webpackIgnore: true */ './verified-contracts-db');
+  return dbModule.getVerifiedContract(address);
 }
 
 const SOURCIFY_API = 'https://sourcify.dev/server';

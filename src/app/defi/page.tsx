@@ -218,7 +218,7 @@ function CopyButton({ text }: { text: string }) {
           color: copied ? "var(--flow-green)" : "var(--text-muted)",
           cursor: "pointer",
           padding: "6px",
-          borderRadius: 4,
+          borderRadius: "var(--radius-sm)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -297,7 +297,7 @@ function ContractCard({ contract, categoryColor }: { contract: DefiContract; cat
         .contract-card {
           background: var(--bg-card);
           border: 1px solid var(--border-subtle);
-          border-radius: 16px;
+          border-radius: var(--radius-lg);
           display: flex;
           flex-direction: column;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -313,10 +313,10 @@ function ContractCard({ contract, categoryColor }: { contract: DefiContract; cat
         }
 
         .card-content {
-          padding: 24px;
+          padding: var(--space-lg);
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: var(--space-md);
           flex: 1;
         }
 
@@ -358,7 +358,7 @@ function ContractCard({ contract, categoryColor }: { contract: DefiContract; cat
           color: var(--text-muted);
           font-size: 16px;
           padding: 6px;
-          border-radius: 6px;
+          border-radius: var(--radius-sm);
           transition: all 0.2s;
           display: flex;
           align-items: center;
@@ -383,7 +383,7 @@ function ContractCard({ contract, categoryColor }: { contract: DefiContract; cat
           gap: 10px;
           background: var(--bg-tertiary);
           padding: 12px 14px;
-          border-radius: 10px;
+          border-radius: var(--radius-md);
           margin-top: auto;
           border: 1px solid var(--border-subtle);
           min-width: 0;
@@ -471,7 +471,7 @@ function CategorySection({ category, isExpanded, onToggle }: {
 
       <style jsx>{`
         .category-section {
-          margin-bottom: 28px;
+          margin-bottom: var(--space-xl);
         }
 
         .category-header {
@@ -479,10 +479,10 @@ function CategorySection({ category, isExpanded, onToggle }: {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 24px 28px;
+          padding: var(--space-lg) var(--space-xl);
           background: var(--bg-card);
           border: 1px solid var(--border-subtle);
-          border-radius: 14px;
+          border-radius: var(--radius-md);
           cursor: pointer;
           transition: all 0.3s;
           text-align: left;
@@ -496,7 +496,7 @@ function CategorySection({ category, isExpanded, onToggle }: {
         .header-left {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: var(--space-md);
         }
 
         .category-indicator {
@@ -510,7 +510,7 @@ function CategorySection({ category, isExpanded, onToggle }: {
         .header-text {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: var(--space-xs);
         }
 
         .category-name {
@@ -531,13 +531,13 @@ function CategorySection({ category, isExpanded, onToggle }: {
         .header-right {
           display: flex;
           align-items: center;
-          gap: 14px;
+          gap: var(--space-md);
         }
 
         .category-section :global(.count-tag) {
           font-family: var(--font-mono);
           font-size: 13px;
-          border-radius: 8px;
+          border-radius: var(--radius-md);
           padding: 6px 14px;
           font-weight: 500;
         }
@@ -548,7 +548,7 @@ function CategorySection({ category, isExpanded, onToggle }: {
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 10px;
+          border-radius: var(--radius-md);
           background: var(--bg-tertiary);
           color: var(--text-muted);
           transition: all 0.3s;
@@ -563,7 +563,7 @@ function CategorySection({ category, isExpanded, onToggle }: {
         .contracts-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-          gap: 20px;
+          gap: var(--space-lg);
           padding: 0;
           max-height: 0;
           overflow: hidden;
@@ -574,7 +574,7 @@ function CategorySection({ category, isExpanded, onToggle }: {
         .contracts-grid.expanded {
           max-height: 3000px;
           opacity: 1;
-          padding: 24px 0 0 0;
+          padding: var(--space-lg) 0 0 0;
         }
 
         @media (max-width: 768px) {
@@ -648,10 +648,10 @@ export default function DefiPage() {
         <div className="hero-content">
           <div className="hero-text">
             <h1 className="hero-title">
-              FLOW<span className="title-accent">_</span>DEFI
+              <span className="title-accent">_</span>DEFI
             </h1>
             <p className="hero-subtitle">
-              Verified DeFi contracts on Flow EVM. Copy addresses and integrate protocols.
+              Essential DeFi infrastructure on Flow EVM. Find verified contracts, integrate protocols, and build the future of finance.
             </p>
           </div>
         </div>
@@ -727,27 +727,28 @@ export default function DefiPage() {
 
         /* Hero Section */
         .hero {
-          padding: 32px 24px 40px;
-          margin-bottom: 24px;
+          padding: var(--space-xl) var(--space-lg) var(--space-xl);
+          margin-bottom: var(--space-lg);
         }
 
         .hero-content {
           position: relative;
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto;
+          padding: 0 var(--space-lg);
         }
 
         .hero-text {
           text-align: center;
-          margin-bottom: 40px;
+          margin-bottom: var(--space-xl);
         }
 
         .hero-title {
           font-family: var(--font-mono);
-          font-size: 32px;
+          font-size: 24px;
           font-weight: 700;
           letter-spacing: 0.05em;
-          margin: 0 0 16px;
+          margin: 0 0 8px;
           color: var(--text-primary);
         }
 
@@ -762,22 +763,22 @@ export default function DefiPage() {
         }
 
         .hero-subtitle {
-          font-size: 16px;
+          font-size: 14px;
           color: var(--text-muted);
           max-width: 480px;
           margin: 0 auto;
-          line-height: 1.6;
+          line-height: 1.5;
         }
 
         /* Search Section */
         .search-section {
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto 40px;
-          padding: 0 24px;
+          padding: 0 var(--space-lg);
         }
 
         .search-wrapper {
-          margin-bottom: 20px;
+          margin-bottom: var(--space-lg);
         }
 
         .glass-search {
@@ -788,8 +789,8 @@ export default function DefiPage() {
           height: 56px;
           background: rgba(255, 255, 255, 0.03);
           backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 14px;
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
           padding: 0 20px;
           transition: all 0.3s ease;
         }
@@ -870,7 +871,7 @@ export default function DefiPage() {
           padding: 8px 16px;
           background: var(--bg-tertiary);
           border: 1px solid var(--border-subtle);
-          border-radius: 24px;
+          border-radius: var(--radius-lg);
           color: var(--text-secondary);
           font-size: 14px;
           cursor: pointer;
@@ -886,9 +887,9 @@ export default function DefiPage() {
 
         /* Categories */
         .categories-section {
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto;
-          padding: 0 24px;
+          padding: 0 var(--space-lg);
         }
 
         /* No Results */
@@ -904,7 +905,7 @@ export default function DefiPage() {
         .no-results-icon {
           width: 72px;
           height: 72px;
-          border-radius: 18px;
+          border-radius: var(--radius-lg);
           background: var(--bg-tertiary);
           display: flex;
           align-items: center;
@@ -930,7 +931,7 @@ export default function DefiPage() {
           padding: 14px 32px;
           background: var(--flow-green);
           border: none;
-          border-radius: 10px;
+          border-radius: var(--radius-md);
           color: var(--bg-primary);
           font-weight: 600;
           font-size: 15px;
@@ -946,19 +947,19 @@ export default function DefiPage() {
         /* Mobile */
         @media (max-width: 768px) {
           .hero {
-            padding: 32px 16px 48px;
+            padding: var(--space-xl) var(--space-md) var(--space-xl);
           }
 
           .hero-title {
-            font-size: 36px;
+            font-size: 20px;
           }
 
           .hero-subtitle {
-            font-size: 16px;
+            font-size: 14px;
           }
 
           .search-section {
-            padding: 0 16px;
+            padding: 0 var(--space-md);
           }
 
           .search-section :global(.search-input) {
@@ -966,7 +967,7 @@ export default function DefiPage() {
           }
 
           .categories-section {
-            padding: 0 16px;
+            padding: 0 var(--space-md);
           }
         }
       `}</style>

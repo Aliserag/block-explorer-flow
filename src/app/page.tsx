@@ -36,6 +36,31 @@ export default async function HomePage() {
 
   return (
     <div className="container">
+      {/* Terminal-style header */}
+      <div style={{ marginBottom: "var(--space-xl)" }}>
+        <h1
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 24,
+            fontWeight: 700,
+            color: "var(--text-primary)",
+            letterSpacing: "0.05em",
+            marginBottom: "var(--space-xs)",
+          }}
+        >
+          <span style={{ color: "var(--flow-green)", animation: "cursorBlink 1s step-end infinite" }}>_</span>EXPLORER
+        </h1>
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Real-time block explorer for Flow EVM (Chain ID: 747)
+        </p>
+      </div>
+      <style>{`
+        @keyframes cursorBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+      `}</style>
+
       {/* Hero Stats */}
       <div
         style={{
@@ -114,15 +139,16 @@ export default async function HomePage() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 12,
           marginTop: "var(--space-xl)",
-          padding: "var(--space-md) var(--space-lg)",
+          padding: "var(--space-lg)",
           background: "rgba(0, 239, 139, 0.03)",
           border: "1px solid rgba(0, 239, 139, 0.1)",
-          borderRadius: 6,
+          borderRadius: "var(--radius-md)",
           fontSize: 14,
           color: "var(--text-muted)",
           fontFamily: "var(--font-mono)",
+          lineHeight: 1.5,
         }}
       >
         <span
@@ -285,7 +311,7 @@ function BlockRow({
           style={{
             width: 36,
             height: 36,
-            borderRadius: 6,
+            borderRadius: "var(--radius-sm)",
             background: "var(--bg-tertiary)",
             display: "flex",
             alignItems: "center",
@@ -355,7 +381,7 @@ function TxRow({
           style={{
             width: 36,
             height: 36,
-            borderRadius: 6,
+            borderRadius: "var(--radius-sm)",
             background: "var(--bg-tertiary)",
             display: "flex",
             alignItems: "center",

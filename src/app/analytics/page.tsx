@@ -318,23 +318,24 @@ export default function AnalyticsPage() {
         <div style={{
           background: "rgba(239, 68, 68, 0.1)",
           border: "1px solid rgba(239, 68, 68, 0.3)",
-          borderRadius: 4,
+          borderRadius: "var(--radius-md)",
           padding: "var(--space-xl)",
           textAlign: "center",
         }}>
-          <p style={{ color: "#EF4444", fontFamily: "var(--font-mono)", marginBottom: 16 }}>
+          <p style={{ color: "var(--status-error)", fontFamily: "var(--font-mono)", marginBottom: 16 }}>
             ERROR: {error}
           </p>
           <button
             onClick={fetchStats}
             style={{
               background: "transparent",
-              border: "1px solid #EF4444",
-              color: "#EF4444",
+              border: "1px solid var(--status-error)",
+              color: "var(--status-error)",
               padding: "8px 24px",
               cursor: "pointer",
               fontFamily: "var(--font-mono)",
               fontSize: 12,
+              borderRadius: "var(--radius-sm)",
             }}
           >
             RETRY
@@ -360,7 +361,7 @@ export default function AnalyticsPage() {
             </div>
           )}
           <h1 className="header-title">
-            FLOW<span className="accent">_</span>ANALYTICS
+            <span className="accent">_</span>ANALYTICS
           </h1>
         </div>
 
@@ -634,7 +635,8 @@ export default function AnalyticsPage() {
       <style jsx>{`
         .analytics-page {
           min-height: 100vh;
-          background: var(--bg-primary);
+          max-width: 1400px;
+          margin: 0 auto;
           padding: 0 var(--space-lg) var(--space-2xl);
         }
 
@@ -663,7 +665,7 @@ export default function AnalyticsPage() {
           padding: 6px 12px;
           background: rgba(0, 239, 139, 0.08);
           border: 1px solid rgba(0, 239, 139, 0.2);
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
         }
 
         .status-dot {
@@ -708,7 +710,7 @@ export default function AnalyticsPage() {
           display: flex;
           background: var(--bg-tertiary);
           border: 1px solid var(--border-subtle);
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
           overflow: hidden;
         }
 
@@ -742,7 +744,7 @@ export default function AnalyticsPage() {
           justify-content: center;
           background: var(--bg-tertiary);
           border: 1px solid var(--border-subtle);
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
           color: var(--text-secondary);
           cursor: pointer;
           transition: all 0.2s;
@@ -761,7 +763,7 @@ export default function AnalyticsPage() {
           padding: var(--space-lg) var(--space-xl);
           background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
           border: 1px solid var(--border-subtle);
-          border-radius: 8px;
+          border-radius: var(--radius-md);
           margin-bottom: var(--space-xl);
           overflow-x: auto;
           flex-wrap: nowrap;
@@ -822,7 +824,7 @@ export default function AnalyticsPage() {
         .chart-panel, .data-panel {
           background: var(--bg-card);
           border: 1px solid var(--border-subtle);
-          border-radius: 8px;
+          border-radius: var(--radius-md);
           overflow: hidden;
         }
 
@@ -914,7 +916,7 @@ export default function AnalyticsPage() {
           padding: var(--space-lg);
           background: rgba(0, 239, 139, 0.03);
           border: 1px solid rgba(0, 239, 139, 0.1);
-          border-radius: 8px;
+          border-radius: var(--radius-md);
           font-family: var(--font-mono);
           font-size: 14px;
           color: var(--text-muted);
