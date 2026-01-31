@@ -413,9 +413,18 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
             lastActivityTimestamp: block.timestamp,
           });
 
-          // Update deployer aggregate stats
+          // Update deployer aggregate stats (upsert for safety - deployer may not exist if contract was created before indexer started)
           const deployerAddress = contractRecord.deployerAddress;
-          await db.update(deployers, { address: deployerAddress }).set((row) => ({
+          await db.insert(deployers).values({
+            address: deployerAddress,
+            contractCount: 1,
+            totalTransactionsAcrossContracts: 1n,
+            totalUniqueUsersAcrossContracts: !existingCaller ? 1 : 0,
+            firstDeployBlock: block.number,
+            firstDeployTimestamp: block.timestamp,
+            lastDeployBlock: block.number,
+            lastDeployTimestamp: block.timestamp,
+          }).onConflictDoUpdate((row) => ({
             totalTransactionsAcrossContracts: row.totalTransactionsAcrossContracts + 1n,
             totalUniqueUsersAcrossContracts: !existingCaller
               ? row.totalUniqueUsersAcrossContracts + 1
@@ -791,14 +800,36 @@ ponder.on("ERC20:Transfer", async ({ event, context }) => {
     burnAmount: isBurn ? row.burnAmount + value : row.burnAmount,
   }));
 
-  // Update daily stats token transfer count
-  await db.update(dailyStats, { date: dateKey }).set((row) => ({
+  // Update daily stats token transfer count (upsert for safety)
+  await db.insert(dailyStats).values({
+    date: dateKey,
+    transactionCount: 0,
+    blockCount: 0,
+    contractsDeployed: 0,
+    totalGasUsed: 0n,
+    avgGasPrice: 0n,
+    uniqueFromAddresses: 0,
+    uniqueToAddresses: 0,
+    tokenTransferCount: 1,
+    totalValueTransferred: 0n,
+    nftTransferCount: 0,
+    newAccountsCount: 0,
+    activeContractsCount: 0,
+  }).onConflictDoUpdate((row) => ({
     tokenTransferCount: row.tokenTransferCount + 1,
   }));
 
-  // Update hourly stats token transfer count
+  // Update hourly stats token transfer count (upsert for safety)
   const hourKey = getHourKey(timestamp);
-  await db.update(hourlyStats, { hour: hourKey }).set((row) => ({
+  await db.insert(hourlyStats).values({
+    hour: hourKey,
+    transactionCount: 0,
+    blockCount: 0,
+    contractsDeployed: 0,
+    totalGasUsed: 0n,
+    avgGasPrice: 0n,
+    tokenTransferCount: 1,
+  }).onConflictDoUpdate((row) => ({
     tokenTransferCount: row.tokenTransferCount + 1,
   }));
 });
@@ -1003,8 +1034,22 @@ ponder.on("ERC721:Transfer", async ({ event, context }) => {
     burnCount: isBurn ? row.burnCount + 1 : row.burnCount,
   }));
 
-  // Update daily stats NFT transfer count
-  await db.update(dailyStats, { date: dateKey }).set((row) => ({
+  // Update daily stats NFT transfer count (upsert for safety)
+  await db.insert(dailyStats).values({
+    date: dateKey,
+    transactionCount: 0,
+    blockCount: 0,
+    contractsDeployed: 0,
+    totalGasUsed: 0n,
+    avgGasPrice: 0n,
+    uniqueFromAddresses: 0,
+    uniqueToAddresses: 0,
+    tokenTransferCount: 0,
+    totalValueTransferred: 0n,
+    nftTransferCount: 1,
+    newAccountsCount: 0,
+    activeContractsCount: 0,
+  }).onConflictDoUpdate((row) => ({
     nftTransferCount: row.nftTransferCount + 1,
   }));
 });
