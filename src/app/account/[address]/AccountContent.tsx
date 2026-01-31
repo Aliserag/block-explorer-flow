@@ -234,8 +234,48 @@ export default function AccountContent({
     </>
   );
 
+  // Transaction filter state
+  const [directionFilter, setDirectionFilter] = useState<"all" | "in" | "out">("all");
+
+  // Format timestamp to readable date/time
+  const formatTimestamp = (timestamp: string | undefined): string => {
+    if (!timestamp) return "-";
+    const date = new Date(Number(timestamp) * 1000);
+    return date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Relative time (e.g., "2 mins ago")
+  const getRelativeTime = (timestamp: string | undefined): string => {
+    if (!timestamp) return "";
+    const now = Date.now();
+    const then = Number(timestamp) * 1000;
+    const diff = now - then;
+
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 30) return `${days}d ago`;
+    return "";
+  };
+
   // Transactions tab content with pagination
   const TransactionsTab = () => {
+    // Filter transactions by direction
+    const filteredTxHistory = txHistory.filter((tx) => {
+      if (directionFilter === "all") return true;
+      const isOut = tx.from.toLowerCase() === address.toLowerCase();
+      return directionFilter === "out" ? isOut : !isOut;
+    });
+
     // Only show pagination if we actually have more data to show
     // If current page has fewer items than PAGE_SIZE, there's no next page
     const hasMoreData = txHistory.length >= PAGE_SIZE;
@@ -270,7 +310,7 @@ export default function AccountContent({
           )}
         </div>
 
-        {/* Transaction count banner */}
+        {/* Transaction count banner and filters */}
         <div
           style={{
             background: "var(--bg-tertiary)",
@@ -279,30 +319,60 @@ export default function AccountContent({
             marginBottom: "var(--space-lg)",
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
             gap: "var(--space-md)",
           }}
         >
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: "var(--radius-md)",
-              background: "rgba(0, 239, 139, 0.1)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--flow-green)",
-            }}
-          >
-            <SwapOutlined style={{ fontSize: 20 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)" }}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: "var(--radius-md)",
+                background: "rgba(0, 239, 139, 0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--flow-green)",
+              }}
+            >
+              <SwapOutlined style={{ fontSize: 20 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)" }}>
+                {totalTxCount.toLocaleString()}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                Total Transactions
+              </div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)" }}>
-              {totalTxCount.toLocaleString()}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              Total Transactions
-            </div>
+
+          {/* Direction Filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", marginRight: 4 }}>Filter:</span>
+            {(["all", "in", "out"] as const).map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setDirectionFilter(filter)}
+                style={{
+                  padding: "4px 12px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  border: "1px solid",
+                  borderColor: directionFilter === filter ? "var(--flow-green)" : "var(--border-subtle)",
+                  borderRadius: "var(--radius-sm)",
+                  background: directionFilter === filter ? "rgba(0, 239, 139, 0.15)" : "transparent",
+                  color: directionFilter === filter ? "var(--flow-green)" : "var(--text-secondary)",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  textTransform: "capitalize",
+                }}
+              >
+                {filter === "all" ? "All" : filter === "in" ? "Received" : "Sent"}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -331,6 +401,35 @@ export default function AccountContent({
               This account has no transaction history on Flow EVM.
             </p>
           </div>
+        ) : filteredTxHistory.length === 0 ? (
+          <div
+            style={{
+              padding: "var(--space-xl)",
+              textAlign: "center",
+              color: "var(--text-muted)",
+              background: "var(--bg-secondary)",
+              borderRadius: "var(--radius-md)",
+            }}
+          >
+            <SwapOutlined style={{ fontSize: 32, marginBottom: "var(--space-md)", opacity: 0.5 }} />
+            <p style={{ marginBottom: "var(--space-xs)" }}>
+              No {directionFilter === "in" ? "received" : "sent"} transactions found.
+            </p>
+            <p style={{ fontSize: 13 }}>
+              <button
+                onClick={() => setDirectionFilter("all")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--flow-green)",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                Show all transactions
+              </button>
+            </p>
+          </div>
         ) : (
           <>
             {/* Transaction table */}
@@ -340,6 +439,9 @@ export default function AccountContent({
                   <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                     <th style={{ padding: "var(--space-sm) var(--space-md)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
                       Txn Hash
+                    </th>
+                    <th style={{ padding: "var(--space-sm) var(--space-md)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                      Date/Time
                     </th>
                     <th style={{ padding: "var(--space-sm) var(--space-md)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
                       Block
@@ -356,13 +458,13 @@ export default function AccountContent({
                   </tr>
                 </thead>
                 <tbody>
-                  {txHistory.map((tx, index) => {
+                  {filteredTxHistory.map((tx, index) => {
                     const isOut = tx.from.toLowerCase() === address.toLowerCase();
                     return (
                       <tr
                         key={tx.hash}
                         style={{
-                          borderBottom: index < txHistory.length - 1 ? "1px solid var(--border-subtle)" : "none",
+                          borderBottom: index < filteredTxHistory.length - 1 ? "1px solid var(--border-subtle)" : "none",
                           background: index % 2 === 0 ? "transparent" : "var(--bg-secondary)",
                         }}
                       >
@@ -374,6 +476,16 @@ export default function AccountContent({
                           >
                             {tx.hash.slice(0, 10)}...{tx.hash.slice(-6)}
                           </Link>
+                        </td>
+                        <td style={{ padding: "var(--space-md)" }}>
+                          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                            {formatTimestamp(tx.timestamp)}
+                          </div>
+                          {tx.timestamp && (
+                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                              {getRelativeTime(tx.timestamp)}
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: "var(--space-md)" }}>
                           <Link
