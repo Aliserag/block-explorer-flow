@@ -17,6 +17,20 @@ import Link from "next/link";
 import { networkPath } from "@/lib/links";
 import type { NetworkId } from "@/lib/chains";
 
+interface AssetInfo {
+  type: "native" | "token" | "nft";
+  address?: string;
+  symbol: string;
+  name: string;
+  decimals?: number;
+  iconUrl: string | null;
+  amount: string;
+  formattedAmount: string;
+  isVerified?: boolean;
+  tokenId?: string;
+  collectionName?: string;
+}
+
 interface Transaction {
   hash: string;
   from: string;
@@ -25,6 +39,12 @@ interface Transaction {
   value?: string;
   timestamp?: string;
   status?: number | null;
+  // Enriched data from activity API
+  type?: string;
+  typeLabel?: string;
+  direction?: "in" | "out" | "swap" | "none";
+  primaryAsset?: AssetInfo | null;
+  secondaryAssets?: AssetInfo[];
 }
 
 interface AccountContentProps {
@@ -63,7 +83,10 @@ function isCOA(address: string): boolean {
 }
 
 // Get account type label and color
-function getAccountType(address: string, isContract: boolean): { label: string; title: string; color: string } {
+function getAccountType(
+  address: string,
+  isContract: boolean,
+): { label: string; title: string; color: string } {
   if (isCOA(address)) {
     return { label: "COA", title: "Cadence Owned Account", color: "green" };
   }
@@ -92,28 +115,78 @@ export default function AccountContent({
   const [totalTxCount, setTotalTxCount] = useState(transactionCount);
   const [usePonder, setUsePonder] = useState(false);
 
-  // Fetch transactions with pagination (tries Ponder first)
+  // Cursor for pagination (tx hash)
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+
+  // Fetch transactions with pagination (tries activity API first for enriched data)
   useEffect(() => {
     let mounted = true;
 
     async function fetchTransactions() {
       // Only fetch if we're on page > 1 or if we want to try Ponder
       if (currentPage === 1 && initialTxHistory.length > 0 && !usePonder) {
-        return; // Use initial data for page 1
+        // Try to enrich initial data with activity API on first load
+        try {
+          const activityUrl = `/api/account/${address}/activity?limit=${PAGE_SIZE}&network=${network}`;
+          const response = await fetch(activityUrl);
+          if (response.ok) {
+            const data = await response.json();
+            if (
+              data.success &&
+              data.transactions &&
+              data.transactions.length > 0
+            ) {
+              if (mounted) {
+                setTxHistory(data.transactions);
+                setNextCursor(data.pagination?.nextCursor || null);
+                setUsePonder(true);
+              }
+              return;
+            }
+          }
+        } catch {
+          // Activity API not available, use initial data
+        }
+        return;
       }
 
       setTxLoading(true);
 
       try {
-        // Try Ponder indexed data first (only for mainnet)
+        // Try activity API first for enriched data with token info
+        const cursorParam =
+          currentPage > 1 && nextCursor ? `&cursor=${nextCursor}` : "";
+        const activityUrl = `/api/account/${address}/activity?limit=${PAGE_SIZE}${cursorParam}&network=${network}`;
+
+        const response = await fetch(activityUrl);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.transactions) {
+            if (mounted) {
+              setTxHistory(data.transactions);
+              setNextCursor(data.pagination?.nextCursor || null);
+              setTotalTxCount(
+                data.transactions.length > 0 ? transactionCount : 0,
+              );
+              setUsePonder(true);
+              setTxLoading(false);
+            }
+            return;
+          }
+        }
+
+        // Fallback to basic indexed transactions
         const offset = (currentPage - 1) * PAGE_SIZE;
         const ponderUrl = `/api/transactions/indexed?address=${address}&limit=${PAGE_SIZE}&offset=${offset}&network=${network}`;
 
-        const response = await fetch(ponderUrl);
-        if (response.ok) {
-          const data = await response.json();
-          // Only use Ponder if it actually has transactions
-          if (data.available && data.transactions && data.transactions.length > 0) {
+        const ponderResponse = await fetch(ponderUrl);
+        if (ponderResponse.ok) {
+          const data = await ponderResponse.json();
+          if (
+            data.available &&
+            data.transactions &&
+            data.transactions.length > 0
+          ) {
             if (mounted) {
               setTxHistory(data.transactions);
               setTotalTxCount(data.totalCount || transactionCount);
@@ -124,7 +197,7 @@ export default function AccountContent({
           }
         }
       } catch {
-        // Ponder not available
+        // APIs not available
       }
 
       // Fall back to initial data (from RPC scan) for any page
@@ -142,7 +215,15 @@ export default function AccountContent({
     return () => {
       mounted = false;
     };
-  }, [currentPage, address, initialTxHistory, transactionCount, usePonder]);
+  }, [
+    currentPage,
+    address,
+    initialTxHistory,
+    transactionCount,
+    usePonder,
+    nextCursor,
+    network,
+  ]);
 
   // Overview tab content
   const OverviewTab = () => (
@@ -150,7 +231,8 @@ export default function AccountContent({
       {/* Balance Card */}
       <div
         style={{
-          background: "linear-gradient(135deg, var(--flow-green) 0%, var(--flow-green-dark) 100%)",
+          background:
+            "linear-gradient(135deg, var(--flow-green) 0%, var(--flow-green-dark) 100%)",
           borderRadius: "var(--radius-lg)",
           padding: "var(--space-xl)",
           marginBottom: "var(--space-xl)",
@@ -172,7 +254,10 @@ export default function AccountContent({
           >
             Balance
           </div>
-          <div className="mono" style={{ fontSize: 32, fontWeight: 700, color: "white" }}>
+          <div
+            className="mono"
+            style={{ fontSize: 32, fontWeight: 700, color: "white" }}
+          >
             {parseFloat(balance.formatted).toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 6,
@@ -193,7 +278,12 @@ export default function AccountContent({
         >
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2" />
-            <path d="M12 6V18M18 12H6" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <path
+              d="M12 6V18M18 12H6"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
           </svg>
         </div>
       </div>
@@ -208,7 +298,17 @@ export default function AccountContent({
           marginBottom: "var(--space-xl)",
         }}
       >
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
+        <h3
+          style={{
+            fontSize: 16,
+            fontWeight: 600,
+            marginBottom: "var(--space-md)",
+            color: "var(--text-primary)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
           <DollarOutlined /> Token Holdings
         </h3>
         <TokenList address={address} network={network} />
@@ -223,19 +323,31 @@ export default function AccountContent({
           padding: "var(--space-lg)",
         }}
       >
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>
+        <h3
+          style={{
+            fontSize: 16,
+            fontWeight: 600,
+            marginBottom: "var(--space-md)",
+            color: "var(--text-primary)",
+          }}
+        >
           Account Details
         </h3>
         <DataField label="Address" value={address} mono copyable />
         <DataField label="Balance (wei)" value={balance.wei.toString()} mono />
         <DataField label="Transaction Count" value={transactionCount} />
-        <DataField label="Type" value={`${accountType.title} (${accountType.label})`} />
+        <DataField
+          label="Type"
+          value={`${accountType.title} (${accountType.label})`}
+        />
       </div>
     </>
   );
 
   // Transaction filter state
-  const [directionFilter, setDirectionFilter] = useState<"all" | "in" | "out">("all");
+  const [directionFilter, setDirectionFilter] = useState<"all" | "in" | "out">(
+    "all",
+  );
 
   // Format timestamp to readable date/time
   const formatTimestamp = (timestamp: string | undefined): string => {
@@ -272,15 +384,23 @@ export default function AccountContent({
     // Filter transactions by direction
     const filteredTxHistory = txHistory.filter((tx) => {
       if (directionFilter === "all") return true;
-      const isOut = tx.from.toLowerCase() === address.toLowerCase();
-      return directionFilter === "out" ? isOut : !isOut;
+      // Use enriched direction if available, fallback to from/to comparison
+      const txDirection =
+        tx.direction ||
+        (tx.from.toLowerCase() === address.toLowerCase() ? "out" : "in");
+      if (directionFilter === "out") return txDirection === "out";
+      if (directionFilter === "in") return txDirection === "in";
+      return true;
     });
 
     // Only show pagination if we actually have more data to show
     // If current page has fewer items than PAGE_SIZE, there's no next page
     const hasMoreData = txHistory.length >= PAGE_SIZE;
-    const totalPages = hasMoreData ? Math.ceil(totalTxCount / PAGE_SIZE) : currentPage;
-    const showPagination = totalTxCount > PAGE_SIZE && (currentPage > 1 || hasMoreData);
+    const totalPages = hasMoreData
+      ? Math.ceil(totalTxCount / PAGE_SIZE)
+      : currentPage;
+    const showPagination =
+      totalTxCount > PAGE_SIZE && (currentPage > 1 || hasMoreData);
 
     return (
       <div
@@ -291,8 +411,22 @@ export default function AccountContent({
           padding: "var(--space-lg)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-lg)" }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "var(--space-lg)",
+          }}
+        >
+          <h3
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: "var(--text-primary)",
+              margin: 0,
+            }}
+          >
             Transaction History
           </h3>
           {usePonder && (
@@ -324,7 +458,13 @@ export default function AccountContent({
             gap: "var(--space-md)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-md)",
+            }}
+          >
             <div
               style={{
                 width: 40,
@@ -340,7 +480,13 @@ export default function AccountContent({
               <SwapOutlined style={{ fontSize: 20 }} />
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)" }}>
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                }}
+              >
                 {totalTxCount.toLocaleString()}
               </div>
               <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
@@ -350,8 +496,22 @@ export default function AccountContent({
           </div>
 
           {/* Direction Filter */}
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>
-            <span style={{ fontSize: 12, color: "var(--text-muted)", marginRight: 4 }}>Filter:</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-sm)",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 12,
+                color: "var(--text-muted)",
+                marginRight: 4,
+              }}
+            >
+              Filter:
+            </span>
             {(["all", "in", "out"] as const).map((filter) => (
               <button
                 key={filter}
@@ -361,16 +521,29 @@ export default function AccountContent({
                   fontSize: 12,
                   fontWeight: 500,
                   border: "1px solid",
-                  borderColor: directionFilter === filter ? "var(--flow-green)" : "var(--border-subtle)",
+                  borderColor:
+                    directionFilter === filter
+                      ? "var(--flow-green)"
+                      : "var(--border-subtle)",
                   borderRadius: "var(--radius-sm)",
-                  background: directionFilter === filter ? "rgba(0, 239, 139, 0.15)" : "transparent",
-                  color: directionFilter === filter ? "var(--flow-green)" : "var(--text-secondary)",
+                  background:
+                    directionFilter === filter
+                      ? "rgba(0, 239, 139, 0.15)"
+                      : "transparent",
+                  color:
+                    directionFilter === filter
+                      ? "var(--flow-green)"
+                      : "var(--text-secondary)",
                   cursor: "pointer",
                   transition: "all 0.2s",
                   textTransform: "capitalize",
                 }}
               >
-                {filter === "all" ? "All" : filter === "in" ? "Received" : "Sent"}
+                {filter === "all"
+                  ? "All"
+                  : filter === "in"
+                    ? "Received"
+                    : "Sent"}
               </button>
             ))}
           </div>
@@ -378,9 +551,19 @@ export default function AccountContent({
 
         {txLoading ? (
           // Loading skeleton
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--space-sm)",
+            }}
+          >
             {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton.Input key={i} active style={{ width: "100%", height: 48 }} />
+              <Skeleton.Input
+                key={i}
+                active
+                style={{ width: "100%", height: 48 }}
+              />
             ))}
           </div>
         ) : txHistory.length === 0 ? (
@@ -393,7 +576,13 @@ export default function AccountContent({
               borderRadius: "var(--radius-md)",
             }}
           >
-            <SwapOutlined style={{ fontSize: 32, marginBottom: "var(--space-md)", opacity: 0.5 }} />
+            <SwapOutlined
+              style={{
+                fontSize: 32,
+                marginBottom: "var(--space-md)",
+                opacity: 0.5,
+              }}
+            />
             <p style={{ marginBottom: "var(--space-xs)" }}>
               No transactions found.
             </p>
@@ -411,9 +600,16 @@ export default function AccountContent({
               borderRadius: "var(--radius-md)",
             }}
           >
-            <SwapOutlined style={{ fontSize: 32, marginBottom: "var(--space-md)", opacity: 0.5 }} />
+            <SwapOutlined
+              style={{
+                fontSize: 32,
+                marginBottom: "var(--space-md)",
+                opacity: 0.5,
+              }}
+            />
             <p style={{ marginBottom: "var(--space-xs)" }}>
-              No {directionFilter === "in" ? "received" : "sent"} transactions found.
+              No {directionFilter === "in" ? "received" : "sent"} transactions
+              found.
             </p>
             <p style={{ fontSize: 13 }}>
               <button
@@ -436,65 +632,188 @@ export default function AccountContent({
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <th style={{ padding: "var(--space-sm) var(--space-md)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                  <tr
+                    style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                  >
+                    <th
+                      style={{
+                        padding: "var(--space-sm) var(--space-md)",
+                        textAlign: "left",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
                       Txn Hash
                     </th>
-                    <th style={{ padding: "var(--space-sm) var(--space-md)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                      Date/Time
+                    <th
+                      style={{
+                        padding: "var(--space-sm) var(--space-md)",
+                        textAlign: "left",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Date
                     </th>
-                    <th style={{ padding: "var(--space-sm) var(--space-md)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                      Block
+                    <th
+                      style={{
+                        padding: "var(--space-sm) var(--space-md)",
+                        textAlign: "left",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Type
                     </th>
-                    <th style={{ padding: "var(--space-sm) var(--space-md)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                      Direction
+                    <th
+                      style={{
+                        padding: "var(--space-sm) var(--space-md)",
+                        textAlign: "left",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Asset
                     </th>
-                    <th style={{ padding: "var(--space-sm) var(--space-md)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                    <th
+                      style={{
+                        padding: "var(--space-sm) var(--space-md)",
+                        textAlign: "left",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
                       From
                     </th>
-                    <th style={{ padding: "var(--space-sm) var(--space-md)", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                    <th
+                      style={{
+                        padding: "var(--space-sm) var(--space-md)",
+                        textAlign: "left",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
                       To
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredTxHistory.map((tx, index) => {
-                    const isOut = tx.from.toLowerCase() === address.toLowerCase();
+                    const isOut =
+                      tx.from.toLowerCase() === address.toLowerCase();
+                    const direction = tx.direction || (isOut ? "out" : "in");
+                    const asset = tx.primaryAsset;
+
+                    // Detect contract calls: 0 value, no asset, has recipient
+                    const isContractCall =
+                      !tx.type &&
+                      !asset &&
+                      tx.to &&
+                      (!tx.value || BigInt(tx.value) === 0n);
+
+                    // Determine effective type
+                    const effectiveType = tx.type || (isContractCall ? "contract_call" : undefined);
+
+                    // Type badge colors based on transaction type
+                    const getTypeBadgeStyle = (
+                      type: string | undefined,
+                      dir: string,
+                    ) => {
+                      if (type === "swap")
+                        return {
+                          bg: "rgba(139, 92, 246, 0.15)",
+                          color: "#8b5cf6",
+                        };
+                      if (type === "mint")
+                        return {
+                          bg: "rgba(34, 197, 94, 0.15)",
+                          color: "#22c55e",
+                        };
+                      if (type === "approve")
+                        return {
+                          bg: "rgba(234, 179, 8, 0.15)",
+                          color: "#eab308",
+                        };
+                      if (type === "deploy")
+                        return {
+                          bg: "rgba(59, 130, 246, 0.15)",
+                          color: "#3b82f6",
+                        };
+                      if (type === "contract_call")
+                        return {
+                          bg: "rgba(107, 114, 128, 0.15)",
+                          color: "#9ca3af",
+                        };
+                      if (dir === "out")
+                        return {
+                          bg: "rgba(239, 68, 68, 0.15)",
+                          color: "#ef4444",
+                        };
+                      return {
+                        bg: "rgba(34, 197, 94, 0.15)",
+                        color: "#22c55e",
+                      };
+                    };
+                    const typeBadge = getTypeBadgeStyle(effectiveType, direction);
+
                     return (
                       <tr
                         key={tx.hash}
                         style={{
-                          borderBottom: index < filteredTxHistory.length - 1 ? "1px solid var(--border-subtle)" : "none",
-                          background: index % 2 === 0 ? "transparent" : "var(--bg-secondary)",
+                          borderBottom:
+                            index < filteredTxHistory.length - 1
+                              ? "1px solid var(--border-subtle)"
+                              : "none",
+                          background:
+                            index % 2 === 0
+                              ? "transparent"
+                              : "var(--bg-secondary)",
                         }}
                       >
                         <td style={{ padding: "var(--space-md)" }}>
                           <Link
                             href={networkPath(`/tx/${tx.hash}`, network)}
                             className="mono"
-                            style={{ color: "var(--flow-green)", fontSize: 13, textDecoration: "none" }}
+                            style={{
+                              color: "var(--flow-green)",
+                              fontSize: 13,
+                              textDecoration: "none",
+                            }}
                           >
                             {tx.hash.slice(0, 10)}...{tx.hash.slice(-6)}
                           </Link>
                         </td>
                         <td style={{ padding: "var(--space-md)" }}>
-                          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              color: "var(--text-secondary)",
+                            }}
+                          >
                             {formatTimestamp(tx.timestamp)}
                           </div>
                           {tx.timestamp && (
-                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: "var(--text-muted)",
+                              }}
+                            >
                               {getRelativeTime(tx.timestamp)}
                             </div>
                           )}
-                        </td>
-                        <td style={{ padding: "var(--space-md)" }}>
-                          <Link
-                            href={networkPath(`/block/${tx.blockNumber}`, network)}
-                            className="mono"
-                            style={{ color: "var(--text-accent)", fontSize: 13, textDecoration: "none" }}
-                          >
-                            {tx.blockNumber}
-                          </Link>
                         </td>
                         <td style={{ padding: "var(--space-md)" }}>
                           <span
@@ -504,19 +823,96 @@ export default function AccountContent({
                               borderRadius: 4,
                               fontSize: 11,
                               fontWeight: 600,
-                              background: isOut ? "rgba(239, 68, 68, 0.15)" : "rgba(34, 197, 94, 0.15)",
-                              color: isOut ? "#ef4444" : "#22c55e",
+                              background: typeBadge.bg,
+                              color: typeBadge.color,
+                              textTransform: "capitalize",
                             }}
                           >
-                            {isOut ? "OUT" : "IN"}
+                            {tx.typeLabel ||
+                              (effectiveType === "contract_call" ? "Contract Call" : null) ||
+                              tx.type ||
+                              (direction === "out" ? "Send" : "Receive")}
                           </span>
+                        </td>
+                        <td style={{ padding: "var(--space-md)" }}>
+                          {asset ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              {asset.iconUrl && (
+                                <img
+                                  src={asset.iconUrl}
+                                  alt={asset.symbol}
+                                  style={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: "50%",
+                                  }}
+                                  onError={(e) => {
+                                    (
+                                      e.target as HTMLImageElement
+                                    ).style.display = "none";
+                                  }}
+                                />
+                              )}
+                              <div>
+                                <div
+                                  style={{
+                                    fontSize: 13,
+                                    color: "var(--text-primary)",
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  {direction === "out" ? "-" : "+"}
+                                  {asset.formattedAmount} {asset.symbol}
+                                </div>
+                                {tx.secondaryAssets &&
+                                  tx.secondaryAssets.length > 0 && (
+                                    <div
+                                      style={{
+                                        fontSize: 11,
+                                        color: "var(--text-muted)",
+                                      }}
+                                    >
+                                      → +{tx.secondaryAssets[0].formattedAmount}{" "}
+                                      {tx.secondaryAssets[0].symbol}
+                                    </div>
+                                  )}
+                              </div>
+                            </div>
+                          ) : tx.value && BigInt(tx.value) > 0n ? (
+                            <div
+                              style={{
+                                fontSize: 13,
+                                color: "var(--text-primary)",
+                              }}
+                            >
+                              {direction === "out" ? "-" : "+"}
+                              {(Number(tx.value) / 1e18).toFixed(4)} FLOW
+                            </div>
+                          ) : (
+                            <span
+                              style={{
+                                color: "var(--text-muted)",
+                                fontSize: 13,
+                              }}
+                            >
+                              -
+                            </span>
+                          )}
                         </td>
                         <td style={{ padding: "var(--space-md)" }}>
                           <Link
                             href={networkPath(`/account/${tx.from}`, network)}
                             className="mono"
                             style={{
-                              color: isOut ? "var(--text-secondary)" : "var(--text-accent)",
+                              color: isOut
+                                ? "var(--text-secondary)"
+                                : "var(--text-accent)",
                               fontSize: 13,
                               textDecoration: "none",
                             }}
@@ -530,7 +926,9 @@ export default function AccountContent({
                               href={networkPath(`/account/${tx.to}`, network)}
                               className="mono"
                               style={{
-                                color: isOut ? "var(--text-accent)" : "var(--text-secondary)",
+                                color: isOut
+                                  ? "var(--text-accent)"
+                                  : "var(--text-secondary)",
                                 fontSize: 13,
                                 textDecoration: "none",
                               }}
@@ -538,7 +936,14 @@ export default function AccountContent({
                               {tx.to.slice(0, 8)}...{tx.to.slice(-6)}
                             </Link>
                           ) : (
-                            <span style={{ color: "var(--text-muted)", fontSize: 13 }}>Contract Creation</span>
+                            <span
+                              style={{
+                                color: "var(--text-muted)",
+                                fontSize: 13,
+                              }}
+                            >
+                              Contract Creation
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -564,10 +969,16 @@ export default function AccountContent({
                   disabled={currentPage === 1}
                   style={{
                     padding: "var(--space-sm) var(--space-md)",
-                    background: currentPage === 1 ? "var(--bg-tertiary)" : "var(--bg-secondary)",
+                    background:
+                      currentPage === 1
+                        ? "var(--bg-tertiary)"
+                        : "var(--bg-secondary)",
                     border: "1px solid var(--border-subtle)",
                     borderRadius: "var(--radius-md)",
-                    color: currentPage === 1 ? "var(--text-muted)" : "var(--text-primary)",
+                    color:
+                      currentPage === 1
+                        ? "var(--text-muted)"
+                        : "var(--text-primary)",
                     cursor: currentPage === 1 ? "not-allowed" : "pointer",
                     display: "flex",
                     alignItems: "center",
@@ -583,15 +994,24 @@ export default function AccountContent({
                 </span>
 
                 <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
                   disabled={currentPage === totalPages}
                   style={{
                     padding: "var(--space-sm) var(--space-md)",
-                    background: currentPage === totalPages ? "var(--bg-tertiary)" : "var(--bg-secondary)",
+                    background:
+                      currentPage === totalPages
+                        ? "var(--bg-tertiary)"
+                        : "var(--bg-secondary)",
                     border: "1px solid var(--border-subtle)",
                     borderRadius: "var(--radius-md)",
-                    color: currentPage === totalPages ? "var(--text-muted)" : "var(--text-primary)",
-                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    color:
+                      currentPage === totalPages
+                        ? "var(--text-muted)"
+                        : "var(--text-primary)",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
                     display: "flex",
                     alignItems: "center",
                     gap: 4,
@@ -615,7 +1035,8 @@ export default function AccountContent({
                 textAlign: "center",
               }}
             >
-              Showing page {currentPage} of transactions. Historical data coverage is expanding daily.
+              Showing page {currentPage} of transactions. Historical data
+              coverage is expanding daily.
             </div>
           </>
         )}
@@ -668,9 +1089,30 @@ export default function AccountContent({
     <div className="container">
       {/* Header */}
       <div style={{ marginBottom: "var(--space-xl)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-sm)", flexWrap: "wrap", gap: "var(--space-md)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)" }}>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "var(--space-sm)",
+            flexWrap: "wrap",
+            gap: "var(--space-md)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-md)",
+            }}
+          >
+            <h1
+              style={{
+                fontSize: 24,
+                fontWeight: 700,
+                color: "var(--text-primary)",
+              }}
+            >
               {accountType.title}
             </h1>
             <Tag color={accountType.color}>{accountType.label}</Tag>
@@ -697,7 +1139,14 @@ export default function AccountContent({
             </Link>
           )}
         </div>
-        <p className="mono" style={{ color: "var(--text-muted)", fontSize: 13, wordBreak: "break-all" }}>
+        <p
+          className="mono"
+          style={{
+            color: "var(--text-muted)",
+            fontSize: 13,
+            wordBreak: "break-all",
+          }}
+        >
           {address}
         </p>
       </div>
