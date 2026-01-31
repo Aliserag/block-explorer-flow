@@ -181,12 +181,13 @@ export async function getIndexedBlock(number: string) {
 
 // ============ Transaction Queries ============
 
-export async function getAccountTransactions(address: string, limit = 20) {
+export async function getAccountTransactions(address: string, limit = 20, offset = 0) {
   const result = await query<{ transactionss: { items: IndexedTransaction[] } }>(`
-    query GetAccountTransactions($address: String!, $limit: Int!) {
+    query GetAccountTransactions($address: String!, $limit: Int!, $offset: Int!) {
       transactionss(
         where: { OR: [{ from: $address }, { to: $address }] }
         limit: $limit
+        offset: $offset
         orderBy: "timestamp"
         orderDirection: "desc"
       ) {
@@ -206,7 +207,7 @@ export async function getAccountTransactions(address: string, limit = 20) {
         }
       }
     }
-  `, { address: address.toLowerCase(), limit });
+  `, { address: address.toLowerCase(), limit, offset });
 
   return result?.transactionss?.items ?? [];
 }
