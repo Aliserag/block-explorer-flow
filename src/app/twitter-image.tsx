@@ -139,7 +139,7 @@ export default async function Image() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ fontSize: 32, fontWeight: 700, color: "#00EF8B" }}>Analytics</div>
-            <div style={{ fontSize: 18, color: "rgba(255, 255, 255, 0.5)" }}>Indexed</div>
+            <div style={{ fontSize: 18, color: "rgba(255, 255, 255, 0.5)" }}>Real-time</div>
           </div>
         </div>
       </div>

@@ -15,8 +15,9 @@ const TIME_RANGES = {
 // Estimated blocks per second on Flow EVM (~1 block/sec)
 const BLOCKS_PER_SECOND = 1;
 
-// Max blocks we can reasonably fetch via RPC (increased for better data)
-const MAX_RPC_BLOCKS = 1000;
+// Max blocks we can reasonably fetch via RPC
+// Reduced from 1000 to 200 for faster response times (~2s instead of 8s)
+const MAX_RPC_BLOCKS = 200;
 
 // Minimum data points for charts
 const MIN_CHART_POINTS = 10;

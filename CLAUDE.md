@@ -109,6 +109,29 @@ PONDER_START_BLOCK=0
 - **Frontend**: Vercel (auto-deploy from main)
 - **Ponder**: Railway (PostgreSQL + Ponder service)
 
+## Performance Architecture
+
+### Data Sources (Speed Priority)
+1. **Ponder GraphQL** (fastest) - Pre-indexed, single query, ~50-200ms
+2. **RPC Single Calls** (fast) - Direct chain calls, ~100-500ms
+3. **RPC Batch Calls** (slow) - Multiple blocks/txs, batched in groups of 50
+
+### When to Use Each
+| Use Case | Data Source | Why |
+|----------|-------------|-----|
+| Transaction details | RPC | Single call, always fresh |
+| Block details | RPC | Single call, always fresh |
+| Account transactions | Ponder → RPC fallback | Ponder has indexed history |
+| Analytics (historical) | Ponder | Pre-aggregated stats |
+| Analytics (live) | RPC (limited) | Real-time, but cap at 200 blocks |
+| Token balances | Ponder | Indexed transfers |
+
+### Performance Rules
+- **Prefer Ponder over RPC** for any historical/aggregated data
+- **Limit RPC batch requests** to 200 blocks max (batched in groups of 50)
+- **Default to indexed mode** in analytics (24h vs live)
+- **Use ISR/caching** where possible (`revalidate: 30` on pages)
+
 ## Guidelines
 
 1. **Don't modify Ponder schema without coordination** - Railway indexer depends on it

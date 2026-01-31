@@ -258,7 +258,7 @@ export default function AccountContent({
                 borderRadius: 4,
               }}
             >
-              Indexed
+              Full History
             </span>
           )}
         </div>
@@ -321,9 +321,7 @@ export default function AccountContent({
               No transactions found.
             </p>
             <p style={{ fontSize: 13 }}>
-              {usePonder
-                ? "This account has no indexed transactions yet."
-                : "Full transaction history requires the indexer to be running."}
+              This account has no transaction history on Flow EVM.
             </p>
           </div>
         ) : (
@@ -498,16 +496,7 @@ export default function AccountContent({
                 textAlign: "center",
               }}
             >
-              {usePonder ? (
-                <>Showing page {currentPage} of indexed transactions.</>
-              ) : (
-                <>
-                  Showing {txHistory.length} recent transactions from scanned blocks.
-                  {transactionCount > txHistory.length && (
-                    <> Enable the indexer for full history with pagination.</>
-                  )}
-                </>
-              )}
+              Showing page {currentPage} of transactions. Historical data coverage is expanding daily.
             </div>
           </>
         )}

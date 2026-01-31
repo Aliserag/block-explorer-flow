@@ -205,7 +205,7 @@ export default function TokenList({ address }: TokenListProps) {
               borderRadius: 4,
             }}
           >
-            Indexed
+            {balances.length} Found
           </span>
         )}
       </div>

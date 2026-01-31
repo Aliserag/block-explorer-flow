@@ -52,15 +52,31 @@ export async function getBlock(
   }
 }
 
-export async function getBlocks(start: bigint, count: number, network: NetworkId = "mainnet") {
+// Batch size for parallel RPC requests (prevent overwhelming the node)
+const BATCH_SIZE = 50;
+
+type Block = NonNullable<Awaited<ReturnType<ReturnType<typeof getClient>["getBlock"]>>>;
+
+export async function getBlocks(start: bigint, count: number, network: NetworkId = "mainnet"): Promise<Block[]> {
   const client = getClient(network);
+  const allResults: Block[] = [];
 
-  const promises = Array.from({ length: count }, (_, i) =>
-    client.getBlock({ blockNumber: start - BigInt(i) }).catch(() => null)
-  );
+  // Process in batches to avoid rate limiting
+  for (let i = 0; i < count; i += BATCH_SIZE) {
+    const batchSize = Math.min(BATCH_SIZE, count - i);
+    const promises = Array.from({ length: batchSize }, (_, j) =>
+      client.getBlock({ blockNumber: start - BigInt(i + j) }).catch(() => null)
+    );
 
-  const results = await Promise.all(promises);
-  return results.filter((b) => b !== null);
+    const batchResults = await Promise.all(promises);
+    for (const b of batchResults) {
+      if (b !== null) {
+        allResults.push(b);
+      }
+    }
+  }
+
+  return allResults;
 }
 
 // Transaction operations
@@ -157,10 +173,10 @@ export async function getRecentTransactionsForAddress(
 }
 
 // Format helpers
-export function formatBlock(block: NonNullable<Awaited<ReturnType<typeof getBlock>>>) {
+export function formatBlock(block: Block) {
   return {
     number: block.number?.toString() ?? "0",
-    hash: block.hash,
+    hash: block.hash ?? "0x",
     parentHash: block.parentHash,
     timestamp: block.timestamp?.toString() ?? "0",
     timestampDate: block.timestamp ? new Date(Number(block.timestamp) * 1000).toISOString() : null,
