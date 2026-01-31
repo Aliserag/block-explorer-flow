@@ -535,11 +535,16 @@ ponder.on("ERC721:Transfer", async ({ event, context }) => {
   // Remove from sender (if not mint)
   if (!isMint) {
     const fromOwnershipId = `${from.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
-    await db.update(nftOwnership, { id: fromOwnershipId }).set({
-      balance: 0n,
-      lastUpdatedBlock: blockNumber,
-      lastUpdatedTimestamp: timestamp,
-    });
+    const existingFromOwnership = await db.find(nftOwnership, { id: fromOwnershipId });
+
+    if (existingFromOwnership) {
+      await db.update(nftOwnership, { id: fromOwnershipId }).set({
+        balance: 0n,
+        lastUpdatedBlock: blockNumber,
+        lastUpdatedTimestamp: timestamp,
+      });
+    }
+    // If record doesn't exist, we're seeing a transfer for an NFT acquired before our start block - skip
   }
 
   // Add to receiver (if not burn)
