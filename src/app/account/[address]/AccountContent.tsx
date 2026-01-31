@@ -41,9 +41,22 @@ const PAGE_SIZE = 25;
 
 // Detect Flow COA (Cadence Owned Account) - addresses starting with leading zeros
 function isCOA(address: string): boolean {
-  // COA addresses on Flow EVM start with 0x000000000000000000000000
-  // They have at least 8 leading zero bytes (16 hex chars after 0x)
-  return address.toLowerCase().startsWith("0x000000000000000000000000");
+  // COA addresses on Flow EVM have many leading zeros
+  // Check for at least 20 leading zeros (10 zero bytes) after 0x
+  // Example: 0x00000000000000000000000235F48d21dc84fFcE
+  const addr = address.toLowerCase();
+  if (!addr.startsWith("0x")) return false;
+
+  // Count leading zeros after 0x
+  const hex = addr.slice(2);
+  let zeroCount = 0;
+  for (const char of hex) {
+    if (char === "0") zeroCount++;
+    else break;
+  }
+
+  // COA typically has 20+ leading zeros (address is derived from Cadence address)
+  return zeroCount >= 20;
 }
 
 // Get account type label and color

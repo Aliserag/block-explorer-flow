@@ -152,7 +152,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
       gasUsed: gasUsed,
       input: tx.input,
       nonce: tx.nonce,
-      type: tx.type ? Number(tx.type) : 0,
+      type: Number.isFinite(Number(tx.type)) ? Number(tx.type) : 0,
       status: status,
       timestamp: block.timestamp,
     }).onConflictDoNothing();
