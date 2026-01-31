@@ -81,9 +81,73 @@ npm run codegen      # Regenerate types from schema
 - Use `export const dynamic = "force-dynamic"` for dynamic routes
 - Return JSON with consistent error structure
 
-## Ponder Schema
+## Ponder.sh Concepts
 
-Tables: `blocks`, `transactions`, `accounts`, `tokens`, `tokenTransfers`, `accountTokenBalances`, `contracts`, `dailyStats`, `hourlyStats`
+Ponder is an open-source EVM indexer framework that provides a GraphQL API over blockchain data.
+
+### Architecture
+```
+Flow EVM RPC ──→ Ponder Indexer ──→ PostgreSQL ──→ GraphQL API
+                   │
+                   └──→ Event Handlers (TypeScript)
+```
+
+### Key Concepts
+
+**1. Schema Definition (`ponder.schema.ts`)**
+```typescript
+import { onchainTable, index } from "@ponder/core";
+
+export const blocks = onchainTable("blocks", (t) => ({
+  number: t.bigint().primaryKey(),
+  hash: t.hex().notNull(),
+  timestamp: t.bigint().notNull(),
+}), (table) => ({
+  timestampIdx: index().on(table.timestamp),
+}));
+```
+
+**2. Event Handlers (`src/index.ts`)**
+```typescript
+import { ponder } from "@/generated";
+
+// Block handler - runs for every block
+ponder.on("FlowBlocks:block", async ({ event, context }) => {
+  const { db, client } = context;
+  await db.insert(blocks).values({...}).onConflictDoNothing();
+});
+
+// Event handler - catches ERC-20 transfers
+ponder.on("ERC20:Transfer", async ({ event, context }) => {
+  const { from, to, value } = event.args;
+  // Process transfer...
+});
+```
+
+**3. GraphQL API Conventions**
+- Plural queries use double-s: `blockss`, `transactionss`
+- Use `limit` (not `first`)
+- Use `orderBy` and `orderDirection` as strings
+- Results wrapped in `{ items: [...] }`
+
+```graphql
+# Example query
+{
+  blockss(limit: 10, orderBy: "number", orderDirection: "desc") {
+    items { number hash timestamp }
+  }
+  _meta { status }
+}
+```
+
+**4. Sync Status**
+- `_meta.status.flowEvm.ready: true` = Sync complete
+- `_meta.status.flowEvm.ready: false` = Still syncing historical blocks
+- Data only appears in API after block is fully processed
+
+### Ponder Schema
+
+Tables: `blocks`, `transactions`, `accounts`, `tokens`, `tokenTransfers`, `accountTokenBalances`, `nftCollections`, `nfts`, `nftTransfers`, `nftOwnership`, `contracts`, `dailyStats`, `hourlyStats`
 
 - Import from `../ponder.schema` (relative path)
 - Use `@/generated` for ponder registry
@@ -464,3 +528,124 @@ NEXT_PUBLIC_PONDER_URL=https://athletic-prosperity-production.up.railway.app
 ```
 
 When ready to switch, update `.env` and redeploy to Vercel.
+
+---
+
+### 2026-01-31: Current Infrastructure Status
+
+#### Live Status Check (as of session)
+
+| Stage | Endpoint | Indexed Block | Chain Head | Status |
+|-------|----------|---------------|------------|--------|
+| 1 (Day) | `athletic-prosperity-production.up.railway.app` | 54,691,334 | ~54,691,000+ | **READY** |
+| 2 (Week) | TBD | - | - | **502 ERROR** |
+| 3 (Month) | `block-explorer-flow-production.up.railway.app` | - | - | **Not Responding** |
+| 4 (Genesis) | `block-explorer-flow-production-0468.up.railway.app` | 1,127,245 | ~1,272,467 | **SYNCING** (2.3% complete) |
+
+#### GraphQL Status Query
+```bash
+curl -s "https://athletic-prosperity-production.up.railway.app/graphql" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ _meta { status } blockss(limit: 1, orderBy: \"number\", orderDirection: \"desc\") { items { number } } }"}'
+```
+
+#### Custom Claude Code Agents Created
+
+The project now has custom agents in `.claude/agents/`:
+
+| Agent | Purpose | Model |
+|-------|---------|-------|
+| `railway-monitor` | Check Railway/Ponder infrastructure status | haiku |
+| `ponder-helper` | Guide Ponder schema/handler development | inherit |
+| `explorer-tester` | Test block explorer user journeys | haiku |
+| `flow-rpc` | Query Flow EVM chain directly via RPC | haiku |
+
+#### Skills Created (`.claude/skills/`)
+
+- `/check-ponder-status` - Quick status check of all 4 Ponder stages
+- `/test-graphql` - Reference for Ponder GraphQL query syntax
+
+---
+
+## Future Ponder Schema Improvements
+
+These are proposed schema additions for future releases. Adding them requires re-indexing, so batch together when implementing.
+
+> **IMPORTANT: Implementation Strategy**
+>
+> Do NOT implement these changes until after full genesis indexing is complete. The priority is getting the explorer live with the current schema first. Once `ponder-genesis` has fully synced (54M+ blocks), then:
+> 1. Implement all schema changes in a single batch
+> 2. Deploy new Ponder instance with updated schema
+> 3. Re-index from genesis with new fields populated
+> 4. Switch frontend to new instance once caught up
+> 5. Delete old instance
+>
+> This ensures we ship faster now and avoid multiple expensive re-indexing cycles.
+
+### 1. Tokens Table - Icon & Metadata
+```typescript
+iconUrl: t.text(),           // Token logo URL (from token list or CoinGecko)
+isVerified: t.boolean(),     // Verified/trusted token list
+website: t.text(),           // Project website
+```
+**Use case:** Wallet display needs token icons
+
+### 2. Accounts Table - Type Classification
+```typescript
+accountType: t.text(),       // 'eoa' | 'contract' | 'coa' (Cadence Owned Account)
+label: t.text(),             // Known address label (e.g., "Uniswap Router")
+```
+**Use case:** Flow-specific COA detection, known address labeling
+
+### 3. Contracts Table - Verification & Type
+```typescript
+isVerified: t.boolean(),     // Verification status from Sourcify/Blockscout
+name: t.text(),              // Contract name if verified
+contractType: t.text(),      // 'erc20' | 'erc721' | 'erc1155' | 'proxy' | 'other'
+```
+**Use case:** Show verification badge, auto-detect token contracts
+
+### 4. Transactions Table - Error Handling
+```typescript
+errorMessage: t.text(),      // Revert reason for failed transactions
+methodName: t.text(),        // Human-readable: "transfer", "swap", "approve", etc.
+```
+**Use case:** Better error debugging, human-readable tx descriptions
+
+### 5. NFTs Table - Metadata Enrichment
+```typescript
+imageUrl: t.text(),          // Direct image URL (fetched from tokenUri)
+metadata: t.text(),          // Full JSON metadata blob
+```
+**Use case:** Display NFT images without client-side fetching
+
+### 6. New Table: Address Labels
+```typescript
+export const addressLabels = onchainTable("address_labels", (t) => ({
+  address: t.hex().primaryKey(),
+  label: t.text().notNull(),      // "Uniswap V3 Router", "Binance Hot Wallet"
+  category: t.text(),             // "dex" | "bridge" | "cex" | "defi" | "nft"
+  website: t.text(),
+  logoUrl: t.text(),
+}));
+```
+**Use case:** Show friendly names for known contracts/wallets
+
+### Priority Matrix
+
+| Addition | Usefulness | Effort | Priority |
+|----------|------------|--------|----------|
+| Token `iconUrl` | High | Low | P1 |
+| Account `accountType` | High | Low | P1 |
+| Transaction `methodName` | High | Medium | P1 |
+| Transaction `errorMessage` | Medium | Medium | P2 |
+| Contract `isVerified`, `contractType` | Medium | Low | P2 |
+| NFT `imageUrl`, `metadata` | Medium | High | P3 |
+| Address labels table | Medium | Low | P2 |
+
+### Implementation Notes
+
+- Token icons can be populated from `data/tokens.json` during indexing
+- `accountType` COA detection: address has 20+ leading zeros
+- `methodName` can be derived from 4-byte signature using a signature database
+- NFT metadata fetching is slow - consider doing it async or on-demand
