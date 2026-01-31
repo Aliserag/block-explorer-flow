@@ -559,11 +559,34 @@ export default function AccountContent({
     <div className="container">
       {/* Header */}
       <div style={{ marginBottom: "var(--space-xl)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)", marginBottom: "var(--space-sm)" }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
-            {accountType.title}
-          </h1>
-          <Tag color={accountType.color}>{accountType.label}</Tag>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-sm)", flexWrap: "wrap", gap: "var(--space-md)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)" }}>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
+              {accountType.title}
+            </h1>
+            <Tag color={accountType.color}>{accountType.label}</Tag>
+          </div>
+          {isContract && (
+            <Link
+              href={`/contract/${address}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 16px",
+                background: "var(--flow-green)",
+                color: "white",
+                borderRadius: "var(--radius-md)",
+                textDecoration: "none",
+                fontSize: 14,
+                fontWeight: 600,
+                transition: "all 0.2s",
+              }}
+            >
+              <CodeOutlined />
+              View Contract Details
+            </Link>
+          )}
         </div>
         <p className="mono" style={{ color: "var(--text-muted)", fontSize: 13, wordBreak: "break-all" }}>
           {address}
