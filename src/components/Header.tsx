@@ -89,7 +89,8 @@ export default function Header() {
             <Select
               value={network}
               onChange={setNetwork}
-              style={{ width: 160 }}
+              style={{ width: 140 }}
+              popupMatchSelectWidth={false}
               options={[
                 {
                   value: "mainnet",
@@ -124,13 +125,14 @@ export default function Header() {
                       <span
                         style={{
                           fontSize: 10,
-                          padding: "2px 6px",
+                          padding: "2px 5px",
                           background: "var(--bg-tertiary)",
                           borderRadius: 4,
                           color: "var(--text-muted)",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        Coming Soon
+                        Soon
                       </span>
                     </span>
                   ),

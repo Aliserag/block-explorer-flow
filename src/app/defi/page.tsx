@@ -645,17 +645,13 @@ export default function DefiPage() {
     <div className="defi-page">
       {/* Hero Section */}
       <section className="hero">
-        <div className="hero-bg" />
         <div className="hero-content">
           <div className="hero-text">
             <h1 className="hero-title">
-              <span className="title-prefix">FLOW</span>
-              <span className="title-accent">_</span>
-              <span className="title-main">DEFI</span>
+              FLOW<span className="title-accent">_</span>DEFI
             </h1>
             <p className="hero-subtitle">
-              Essential DeFi infrastructure on Flow EVM. Find verified contracts,
-              integrate protocols, and build the future of finance.
+              Verified DeFi contracts on Flow EVM. Copy addresses and integrate protocols.
             </p>
           </div>
         </div>
@@ -664,14 +660,21 @@ export default function DefiPage() {
       {/* Search & Filters */}
       <section className="search-section">
         <div className="search-wrapper">
-          <Input
-            prefix={<SearchOutlined style={{ color: "var(--text-muted)", fontSize: 18 }} />}
-            placeholder="Search protocols, contracts, or addresses..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-            allowClear
-          />
+          <div className={`glass-search ${searchQuery ? 'has-value' : ''}`}>
+            <SearchOutlined className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search protocols, contracts, or addresses..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="glass-input"
+            />
+            {searchQuery && (
+              <button className="clear-btn" onClick={() => setSearchQuery("")}>
+                ×
+              </button>
+            )}
+          </div>
         </div>
         <div className="filter-tags">
           <span className="filter-label">Quick filters:</span>
@@ -719,26 +722,13 @@ export default function DefiPage() {
       <style jsx>{`
         .defi-page {
           min-height: 100vh;
-          background: var(--bg-primary);
           padding: 0;
         }
 
         /* Hero Section */
         .hero {
-          position: relative;
-          padding: 48px 24px 64px;
-          margin-bottom: 32px;
-          overflow: hidden;
-        }
-
-        .hero-bg {
-          position: absolute;
-          inset: 0;
-          background:
-            radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 239, 139, 0.15), transparent),
-            radial-gradient(ellipse 60% 40% at 100% 0%, rgba(168, 85, 247, 0.1), transparent),
-            radial-gradient(ellipse 60% 40% at 0% 100%, rgba(59, 130, 246, 0.08), transparent);
-          pointer-events: none;
+          padding: 32px 24px 40px;
+          margin-bottom: 24px;
         }
 
         .hero-content {
@@ -749,22 +739,15 @@ export default function DefiPage() {
 
         .hero-text {
           text-align: center;
-          margin-bottom: 48px;
+          margin-bottom: 40px;
         }
 
         .hero-title {
           font-family: var(--font-mono);
-          font-size: 48px;
+          font-size: 32px;
           font-weight: 700;
           letter-spacing: 0.05em;
           margin: 0 0 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0;
-        }
-
-        .title-prefix {
           color: var(--text-primary);
         }
 
@@ -773,19 +756,17 @@ export default function DefiPage() {
           animation: cursorBlink 1s step-end infinite;
         }
 
-        .title-main {
-          background: linear-gradient(90deg, var(--flow-green), #A855F7);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+        @keyframes cursorBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
         }
 
         .hero-subtitle {
-          font-size: 18px;
-          color: var(--text-secondary);
-          max-width: 640px;
+          font-size: 16px;
+          color: var(--text-muted);
+          max-width: 480px;
           margin: 0 auto;
-          line-height: 1.7;
+          line-height: 1.6;
         }
 
         /* Search Section */
@@ -799,23 +780,74 @@ export default function DefiPage() {
           margin-bottom: 20px;
         }
 
-        .search-section :global(.search-input) {
+        .glass-search {
+          position: relative;
+          display: flex;
+          align-items: center;
           width: 100%;
           height: 56px;
-          background: var(--bg-card) !important;
-          border: 1px solid var(--border-subtle) !important;
-          border-radius: 14px !important;
+          background: rgba(255, 255, 255, 0.03);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 14px;
+          padding: 0 20px;
+          transition: all 0.3s ease;
+        }
+
+        .glass-search:hover {
+          border-color: rgba(0, 239, 139, 0.3);
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-search:focus-within {
+          border-color: var(--flow-green);
+          box-shadow: 0 0 0 3px rgba(0, 239, 139, 0.15), 0 8px 32px rgba(0, 239, 139, 0.1);
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .glass-search :global(.search-icon) {
+          font-size: 18px;
+          color: var(--text-muted);
+          margin-right: 14px;
+          flex-shrink: 0;
+        }
+
+        .glass-search:focus-within :global(.search-icon) {
+          color: var(--flow-green);
+        }
+
+        .glass-input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          outline: none;
           font-size: 16px;
+          color: var(--text-primary);
         }
 
-        .search-section :global(.search-input input) {
-          font-size: 16px !important;
+        .glass-input::placeholder {
+          color: var(--text-muted);
         }
 
-        .search-section :global(.search-input:hover),
-        .search-section :global(.search-input:focus-within) {
-          border-color: var(--flow-green) !important;
-          box-shadow: 0 0 0 3px rgba(0, 239, 139, 0.1) !important;
+        .clear-btn {
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--bg-tertiary);
+          border: none;
+          border-radius: 50%;
+          color: var(--text-muted);
+          cursor: pointer;
+          font-size: 16px;
+          line-height: 1;
+          transition: all 0.2s;
+        }
+
+        .clear-btn:hover {
+          background: var(--flow-green);
+          color: var(--bg-primary);
         }
 
         .filter-tags {
@@ -909,12 +941,6 @@ export default function DefiPage() {
         .clear-search:hover {
           opacity: 0.9;
           transform: translateY(-2px);
-        }
-
-        /* Animations */
-        @keyframes cursorBlink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
         }
 
         /* Mobile */

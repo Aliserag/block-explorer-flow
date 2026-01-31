@@ -34,19 +34,27 @@ export default async function BlocksPage({ searchParams }: BlocksPageProps) {
       <div style={{ marginBottom: "var(--space-xl)" }}>
         <h1
           style={{
-            fontSize: 28,
+            fontFamily: "var(--font-mono)",
+            fontSize: 24,
             fontWeight: 700,
             color: "var(--text-primary)",
+            letterSpacing: "0.05em",
             marginBottom: "var(--space-xs)",
           }}
         >
-          Blocks
+          FLOW<span style={{ color: "var(--flow-green)", animation: "cursorBlink 1s step-end infinite" }}>_</span>BLOCKS
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
           Showing blocks #{fromBlock.toLocaleString()} to #{toBlock.toLocaleString()} of{" "}
           {totalBlocks.toLocaleString()} total (Latest: #{latestBlockNumber.toLocaleString()})
         </p>
       </div>
+      <style>{`
+        @keyframes cursorBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+      `}</style>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
         {formattedBlocks.map((block) => (
