@@ -34,8 +34,22 @@ function getHourKey(timestamp: bigint): string {
 
 // Block handler - indexes blocks, transactions, contracts, and stats
 ponder.on("FlowBlocks:block", async ({ event, context }) => {
-  const { db, client } = context;
+  const { db } = context;
   const block = event.block;
+
+  // First, insert just the block with 0 transactions to verify DB writes work
+  await db.insert(blocks).values({
+    number: block.number,
+    hash: block.hash,
+    parentHash: block.parentHash,
+    timestamp: block.timestamp,
+    gasUsed: block.gasUsed,
+    gasLimit: block.gasLimit,
+    baseFeePerGas: block.baseFeePerGas ?? null,
+    transactionCount: 0, // Start with 0, we'll update if we fetch transactions
+    miner: block.miner,
+    size: block.size ?? null,
+  }).onConflictDoNothing();
 
   // Try to fetch the full block with transactions
   let txList: Array<unknown> = [];
@@ -48,24 +62,17 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     });
     txList = fullBlock.transactions ?? [];
     transactionCount = Array.isArray(txList) ? txList.length : 0;
+
+    // Update block with actual transaction count if we got it
+    if (transactionCount > 0) {
+      await db.update(blocks, { number: block.number }).set({
+        transactionCount,
+      });
+    }
   } catch (err) {
-    // If RPC fetch fails, continue with just block data
+    // If RPC fetch fails, continue - block already inserted with transactionCount: 0
     console.error(`Failed to fetch block ${block.number} transactions:`, err);
   }
-
-  // Insert block
-  await db.insert(blocks).values({
-    number: block.number,
-    hash: block.hash,
-    parentHash: block.parentHash,
-    timestamp: block.timestamp,
-    gasUsed: block.gasUsed,
-    gasLimit: block.gasLimit,
-    baseFeePerGas: block.baseFeePerGas ?? null,
-    transactionCount,
-    miner: block.miner,
-    size: block.size ?? null,
-  }).onConflictDoNothing();
 
   const dateKey = getDateKey(block.timestamp);
   const hourKey = getHourKey(block.timestamp);
