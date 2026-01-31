@@ -94,39 +94,22 @@ export default function ContractContent({
             <>
               <DataField
                 label="Deployer"
-                value={
-                  <Link
-                    href={`/account/${contractData.deployerAddress}`}
-                    style={{ color: "var(--flow-green)", textDecoration: "none" }}
-                    className="mono"
-                  >
-                    {contractData.deployerAddress}
-                  </Link>
-                }
+                value={contractData.deployerAddress}
+                mono
+                copyable
+                href={`/account/${contractData.deployerAddress}`}
               />
               <DataField
                 label="Deployment Transaction"
-                value={
-                  <Link
-                    href={`/tx/${contractData.deploymentTxHash}`}
-                    style={{ color: "var(--flow-green)", textDecoration: "none" }}
-                    className="mono"
-                  >
-                    {contractData.deploymentTxHash}
-                  </Link>
-                }
+                value={contractData.deploymentTxHash}
+                mono
+                copyable
+                href={`/tx/${contractData.deploymentTxHash}`}
               />
               <DataField
                 label="Deployment Block"
-                value={
-                  <Link
-                    href={`/block/${contractData.blockNumber}`}
-                    style={{ color: "var(--flow-green)", textDecoration: "none" }}
-                    className="mono"
-                  >
-                    {contractData.blockNumber}
-                  </Link>
-                }
+                value={`#${Number(contractData.blockNumber).toLocaleString()}`}
+                href={`/block/${contractData.blockNumber}`}
               />
               <DataField label="Deployment Time" value={formatDate(contractData.timestamp)} />
             </>
