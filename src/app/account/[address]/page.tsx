@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { isAddress, type Address } from "viem";
-import { getBalance, getTransactionCount, getCode, getRecentTransactionsForAddress } from "@/lib/rpc";
+import { getBalance, getTransactionCount, getCode } from "@/lib/rpc";
 import { getAccountTransactions, isPonderAvailable } from "@/lib/ponder";
 import AccountContent from "./AccountContent";
 
@@ -13,6 +13,7 @@ export default async function AccountPage({ params }: { params: Promise<{ addres
 
   const addr = address as Address;
 
+  // Fetch basic account info in parallel (fast RPC calls)
   const [balance, transactionCount, code, ponderAvailable] = await Promise.all([
     getBalance(addr),
     getTransactionCount(addr),
@@ -22,25 +23,15 @@ export default async function AccountPage({ params }: { params: Promise<{ addres
 
   const isContract = code !== "0x" && code.length > 2;
 
-  // Get transaction history - try Ponder first, fall back to RPC scan
+  // Only fetch tx history from Ponder (fast) - don't do slow RPC scan on server
   let txHistory: Array<{ hash: string; from: string; to: string | null; blockNumber: string }> = [];
 
   if (ponderAvailable) {
-    // Try Ponder first
     txHistory = await getAccountTransactions(address);
   }
 
-  // If Ponder didn't return data, scan recent blocks via RPC
-  // Scan 1000 blocks (~17 min) to avoid rate limits
-  if (txHistory.length === 0) {
-    const recentTxs = await getRecentTransactionsForAddress(addr, 1000);
-    txHistory = recentTxs.map((tx) => ({
-      hash: tx.hash,
-      from: tx.from,
-      to: tx.to,
-      blockNumber: tx.blockNumber,
-    }));
-  }
+  // Don't do expensive RPC block scanning here - let client handle loading state
+  // The AccountContent component will show appropriate empty state
 
   return (
     <AccountContent
