@@ -232,8 +232,11 @@ export default function AccountContent({
 
   // Transactions tab content with pagination
   const TransactionsTab = () => {
-    const totalPages = Math.ceil(totalTxCount / PAGE_SIZE);
-    const showPagination = totalTxCount > PAGE_SIZE;
+    // Only show pagination if we actually have more data to show
+    // If current page has fewer items than PAGE_SIZE, there's no next page
+    const hasMoreData = txHistory.length >= PAGE_SIZE;
+    const totalPages = hasMoreData ? Math.ceil(totalTxCount / PAGE_SIZE) : currentPage;
+    const showPagination = totalTxCount > PAGE_SIZE && (currentPage > 1 || hasMoreData);
 
     return (
       <div
