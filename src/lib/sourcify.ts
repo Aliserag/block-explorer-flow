@@ -1,3 +1,17 @@
+// Contract verification via Sourcify + local Blockscout verifier
+// Note: Flow EVM (chain ID 747) is not yet supported by Sourcify.
+// We use a local Blockscout verifier for Flow contracts.
+
+// Dynamic import for server-side only DB operations
+async function getLocalVerifiedContract(address: string) {
+  // Only import the DB module server-side
+  if (typeof window !== 'undefined') {
+    return null; // Client-side: skip local DB check
+  }
+  const { getVerifiedContract } = await import('./verified-contracts-db');
+  return getVerifiedContract(address);
+}
+
 const SOURCIFY_API = 'https://sourcify.dev/server';
 const FLOW_MAINNET_CHAIN_ID = 747;
 
@@ -11,13 +25,27 @@ export interface VerifiedContract {
 }
 
 /**
- * Check if a contract is verified on Sourcify
+ * Check if a contract is verified (local DB first, then Sourcify fallback)
  */
 export async function checkVerification(address: string): Promise<VerificationStatus> {
+  // 1. Check local verified_contracts table first
+  try {
+    const localContract = await getLocalVerifiedContract(address);
+    if (localContract) {
+      return localContract.matchType === 'partial' ? 'partial' : 'full';
+    }
+  } catch (error) {
+    console.debug('Local verification check failed, trying Sourcify:', error);
+  }
+
+  // 2. Fall back to Sourcify (returns 'none' for Flow as it's not supported)
   try {
     const response = await fetch(
       `${SOURCIFY_API}/check-by-addresses?addresses=${address}&chainIds=${FLOW_MAINNET_CHAIN_ID}`,
-      { next: { revalidate: 60 } }
+      {
+        next: { revalidate: 60 },
+        signal: AbortSignal.timeout(5000),
+      }
     );
 
     if (!response.ok) {
@@ -53,19 +81,38 @@ export async function checkVerification(address: string): Promise<VerificationSt
 
     return 'none';
   } catch (error) {
-    console.error('Error checking Sourcify verification:', error);
+    console.debug('Sourcify verification check failed:', error);
     return 'none';
   }
 }
 
 /**
- * Get verified source files from Sourcify
+ * Get verified source files (local DB first, then Sourcify fallback)
  */
 export async function getVerifiedSources(address: string): Promise<VerifiedContract | null> {
+  // 1. Check local verified_contracts table first
+  try {
+    const localContract = await getLocalVerifiedContract(address);
+    if (localContract) {
+      return {
+        name: localContract.contractName,
+        compiler: `solc ${localContract.compilerVersion}`,
+        sources: localContract.sourceFiles,
+        abi: localContract.abi,
+      };
+    }
+  } catch (error) {
+    console.debug('Local sources fetch failed, trying Sourcify:', error);
+  }
+
+  // 2. Fall back to Sourcify
   try {
     const response = await fetch(
       `${SOURCIFY_API}/files/${FLOW_MAINNET_CHAIN_ID}/${address}`,
-      { next: { revalidate: 300 } }
+      {
+        next: { revalidate: 300 },
+        signal: AbortSignal.timeout(10000),
+      }
     );
 
     if (!response.ok) {
@@ -88,12 +135,10 @@ export async function getVerifiedSources(address: string): Promise<VerifiedContr
         try {
           const metadata = JSON.parse(file.content);
 
-          // Extract compiler version
           if (metadata.compiler?.version) {
             compiler = `solc ${metadata.compiler.version}`;
           }
 
-          // Extract contract name from compilation target
           if (metadata.settings?.compilationTarget) {
             const targets = Object.values(metadata.settings.compilationTarget);
             if (targets.length > 0) {
@@ -101,7 +146,6 @@ export async function getVerifiedSources(address: string): Promise<VerifiedContr
             }
           }
 
-          // Extract ABI
           if (metadata.output?.abi) {
             abi = metadata.output.abi;
           }
@@ -109,13 +153,11 @@ export async function getVerifiedSources(address: string): Promise<VerifiedContr
           // Ignore metadata parsing errors
         }
       } else if (file.name.endsWith('.sol')) {
-        // Store source file with clean path
         const cleanPath = file.path?.replace(/^.*\/sources\//, '') || file.name;
         sources[cleanPath] = file.content;
       }
     }
 
-    // If we didn't find ABI in metadata, look for a separate JSON file
     if (abi.length === 0) {
       const abiFile = files.find((f: { name: string }) => f.name.endsWith('.json') && f.name !== 'metadata.json');
       if (abiFile) {
@@ -138,7 +180,7 @@ export async function getVerifiedSources(address: string): Promise<VerifiedContr
       abi,
     };
   } catch (error) {
-    console.error('Error fetching verified sources:', error);
+    console.debug('Sourcify sources fetch failed:', error);
     return null;
   }
 }

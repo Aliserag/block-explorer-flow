@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tabs, Tag, Skeleton, Card, message } from "antd";
+import { Tabs, Tag, Skeleton, Card, message, Button } from "antd";
 import {
   FileTextOutlined,
   ApiOutlined,
@@ -23,6 +23,7 @@ import Link from "next/link";
 import DataField from "@/components/DataField";
 import ContractCode from "@/components/ContractCode";
 import ContractABI from "@/components/ContractABI";
+import VerifyContractForm from "@/components/VerifyContractForm";
 import type { IndexedContract } from "@/lib/ponder";
 import type { VerificationStatus, VerifiedContract } from "@/lib/sourcify";
 
@@ -44,6 +45,14 @@ export default function ContractContent({
   verifiedContract,
 }: ContractContentProps) {
   const [copied, setCopied] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [currentVerificationStatus, setCurrentVerificationStatus] = useState(verificationStatus);
+  const [currentVerifiedContract, setCurrentVerifiedContract] = useState(verifiedContract);
+
+  const handleVerificationSuccess = () => {
+    // Reload the page to get fresh verification data
+    window.location.reload();
+  };
 
   const handleCopy = async (text: string) => {
     try {
@@ -119,8 +128,8 @@ export default function ContractContent({
 
           {verifiedContract && (
             <>
-              <DataField label="Contract Name" value={verifiedContract.name} />
-              <DataField label="Compiler" value={verifiedContract.compiler} />
+              <DataField label="Contract Name" value={currentVerifiedContract.name} />
+              <DataField label="Compiler" value={currentVerifiedContract.compiler} />
             </>
           )}
         </div>
@@ -153,30 +162,30 @@ export default function ContractContent({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)" }}>
-            {verificationStatus === "full" ? (
+            {currentVerificationStatus === "full" ? (
               <CheckCircleOutlined style={{ fontSize: 24, color: "var(--status-success)" }} />
-            ) : verificationStatus === "partial" ? (
+            ) : currentVerificationStatus === "partial" ? (
               <InfoCircleOutlined style={{ fontSize: 24, color: "var(--status-pending)" }} />
             ) : (
               <CloseCircleOutlined style={{ fontSize: 24, color: "var(--text-muted)" }} />
             )}
             <div>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-                {verificationStatus === "full"
+                {currentVerificationStatus === "full"
                   ? "Fully Verified"
-                  : verificationStatus === "partial"
+                  : currentVerificationStatus === "partial"
                   ? "Partially Verified"
                   : "Not Verified"}
               </div>
               <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-                {verificationStatus !== "none"
-                  ? "Source code is available on Sourcify"
+                {currentVerificationStatus !== "none"
+                  ? "Source code is verified"
                   : "Source code is not available"}
               </div>
             </div>
           </div>
 
-          {verificationStatus !== "none" && (
+          {currentVerificationStatus !== "none" ? (
             <a
               href={`https://sourcify.dev/#/lookup/${address}`}
               target="_blank"
@@ -196,6 +205,18 @@ export default function ContractContent({
             >
               View on Sourcify
             </a>
+          ) : (
+            <Button
+              type="primary"
+              icon={<SafetyCertificateOutlined />}
+              onClick={() => setShowVerifyModal(true)}
+              style={{
+                background: "var(--flow-green)",
+                borderColor: "var(--flow-green)",
+              }}
+            >
+              Verify Contract
+            </Button>
           )}
         </div>
       </div>
@@ -204,7 +225,7 @@ export default function ContractContent({
 
   // Source Code Tab
   const SourceCodeTab = () => {
-    if (!verifiedContract || Object.keys(verifiedContract.sources).length === 0) {
+    if (!currentVerifiedContract || Object.keys(currentVerifiedContract.sources).length === 0) {
       return (
         <div
           style={{
@@ -220,23 +241,19 @@ export default function ContractContent({
             Source Code Not Available
           </h3>
           <p style={{ color: "var(--text-muted)", marginBottom: "var(--space-md)" }}>
-            This contract has not been verified on Sourcify.
+            This contract has not been verified yet.
           </p>
-          <a
-            href="https://sourcify.dev/"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Button
+            type="primary"
+            icon={<SafetyCertificateOutlined />}
+            onClick={() => setShowVerifyModal(true)}
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              color: "var(--flow-green)",
-              textDecoration: "none",
-              fontSize: 14,
+              background: "var(--flow-green)",
+              borderColor: "var(--flow-green)",
             }}
           >
-            Learn about contract verification
-          </a>
+            Verify Contract
+          </Button>
         </div>
       );
     }
@@ -250,14 +267,14 @@ export default function ContractContent({
           padding: "var(--space-lg)",
         }}
       >
-        <ContractCode sources={verifiedContract.sources} compiler={verifiedContract.compiler} />
+        <ContractCode sources={currentVerifiedContract.sources} compiler={currentVerifiedContract.compiler} />
       </div>
     );
   };
 
   // Read Contract Tab
   const ReadContractTab = () => {
-    if (!verifiedContract || !verifiedContract.abi || verifiedContract.abi.length === 0) {
+    if (!currentVerifiedContract || !currentVerifiedContract.abi || currentVerifiedContract.abi.length === 0) {
       return (
         <div
           style={{
@@ -279,7 +296,7 @@ export default function ContractContent({
       );
     }
 
-    const readFunctions = verifiedContract.abi.filter(
+    const readFunctions = currentVerifiedContract.abi.filter(
       (item) =>
         item.type === "function" && (item.stateMutability === "view" || item.stateMutability === "pure")
     );
@@ -373,7 +390,7 @@ export default function ContractContent({
 
   // Write Contract Tab
   const WriteContractTab = () => {
-    if (!verifiedContract || !verifiedContract.abi || verifiedContract.abi.length === 0) {
+    if (!verifiedContract || !currentVerifiedContract.abi || currentVerifiedContract.abi.length === 0) {
       return (
         <div
           style={{
@@ -395,7 +412,7 @@ export default function ContractContent({
       );
     }
 
-    const writeFunctions = verifiedContract.abi.filter(
+    const writeFunctions = currentVerifiedContract.abi.filter(
       (item) =>
         item.type === "function" &&
         item.stateMutability !== "view" &&
@@ -504,7 +521,7 @@ export default function ContractContent({
 
   // ABI Tab
   const ABITab = () => {
-    if (!verifiedContract || !verifiedContract.abi || verifiedContract.abi.length === 0) {
+    if (!verifiedContract || !currentVerifiedContract.abi || currentVerifiedContract.abi.length === 0) {
       return (
         <div
           style={{
@@ -533,7 +550,7 @@ export default function ContractContent({
           padding: "var(--space-lg)",
         }}
       >
-        <ContractABI abi={verifiedContract.abi} />
+        <ContractABI abi={currentVerifiedContract.abi} />
       </div>
     );
   };
@@ -678,25 +695,25 @@ export default function ContractContent({
       <div style={{ marginBottom: "var(--space-xl)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)", marginBottom: "var(--space-sm)" }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
-            {verifiedContract?.name || "Smart Contract"}
+            {currentVerifiedContract?.name || "Smart Contract"}
           </h1>
           <Tag
             icon={
-              verificationStatus === "full" ? (
+              currentVerificationStatus === "full" ? (
                 <CheckCircleOutlined />
-              ) : verificationStatus === "partial" ? (
+              ) : currentVerificationStatus === "partial" ? (
                 <InfoCircleOutlined />
               ) : (
                 <CloseCircleOutlined />
               )
             }
             color={
-              verificationStatus === "full" ? "success" : verificationStatus === "partial" ? "warning" : "default"
+              currentVerificationStatus === "full" ? "success" : currentVerificationStatus === "partial" ? "warning" : "default"
             }
           >
-            {verificationStatus === "full"
+            {currentVerificationStatus === "full"
               ? "Verified"
-              : verificationStatus === "partial"
+              : currentVerificationStatus === "partial"
               ? "Partially Verified"
               : "Not Verified"}
           </Tag>
@@ -744,6 +761,14 @@ export default function ContractContent({
           padding-top: var(--space-lg);
         }
       `}</style>
+
+      {/* Verify Contract Modal */}
+      <VerifyContractForm
+        address={address}
+        open={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+        onSuccess={handleVerificationSuccess}
+      />
     </div>
   );
 }

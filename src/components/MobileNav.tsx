@@ -3,16 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Drawer, Input, Select } from "antd";
-import { CloseOutlined, HomeOutlined, BlockOutlined, BarChartOutlined } from "@ant-design/icons";
+import { Drawer, Select } from "antd";
+import { CloseOutlined, HomeOutlined, BlockOutlined, BarChartOutlined, BankOutlined } from "@ant-design/icons";
+import SearchBar from "./SearchBar";
 
 interface MobileNavProps {
   network: "mainnet" | "testnet";
   onNetworkChange: (network: "mainnet" | "testnet") => void;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  onSearch: () => void;
-  isSearching: boolean;
 }
 
 // Using a simple event-based approach to control the drawer from outside
@@ -27,10 +24,6 @@ export function openMobileNav() {
 export default function MobileNav({
   network,
   onNetworkChange,
-  searchQuery,
-  onSearchChange,
-  onSearch,
-  isSearching,
 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -45,15 +38,11 @@ export default function MobileNav({
   const navItems = [
     { path: "/", label: "Home", icon: <HomeOutlined /> },
     { path: "/blocks", label: "Blocks", icon: <BlockOutlined /> },
+    { path: "/defi", label: "DeFi", icon: <BankOutlined /> },
     { path: "/analytics", label: "Analytics", icon: <BarChartOutlined /> },
   ];
 
   const handleNavClick = () => {
-    setOpen(false);
-  };
-
-  const handleSearch = () => {
-    onSearch();
     setOpen(false);
   };
 
@@ -112,15 +101,7 @@ export default function MobileNav({
           >
             Search
           </label>
-          <Input.Search
-            placeholder="Address, tx hash, block..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onSearch={handleSearch}
-            loading={isSearching}
-            allowClear
-            style={{ fontFamily: "var(--font-mono)" }}
-          />
+          <SearchBar placeholder="Address, tx hash, block..." />
         </div>
 
         {/* Network Selector */}
@@ -160,6 +141,7 @@ export default function MobileNav({
               },
               {
                 value: "testnet",
+                disabled: true,
                 label: (
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span
@@ -167,10 +149,21 @@ export default function MobileNav({
                         width: 8,
                         height: 8,
                         borderRadius: "50%",
-                        background: "var(--status-pending)",
+                        background: "var(--text-muted)",
                       }}
                     />
                     Testnet
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: "2px 6px",
+                        background: "var(--bg-tertiary)",
+                        borderRadius: 4,
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      Coming Soon
+                    </span>
                   </span>
                 ),
               },

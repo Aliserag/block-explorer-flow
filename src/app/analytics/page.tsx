@@ -451,7 +451,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="chart-container">
             {stats?.txHistory && stats.txHistory.length > 1 ? (
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={stats.txHistory} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
                   <defs>
                     <linearGradient id="txGradient" x1="0" y1="0" x2="0" y2="1">
@@ -467,17 +467,17 @@ export default function AnalyticsPage() {
                   <XAxis
                     dataKey="time"
                     stroke="transparent"
-                    tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)", fontFamily: "var(--font-mono)" }}
+                    tick={{ fontSize: 12, fill: "rgba(255,255,255,0.5)", fontFamily: "var(--font-mono)" }}
                     interval="preserveStartEnd"
-                    tickMargin={10}
+                    tickMargin={12}
                   />
                   <YAxis
                     stroke="transparent"
-                    tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)", fontFamily: "var(--font-mono)" }}
-                    width={50}
+                    tick={{ fontSize: 12, fill: "rgba(255,255,255,0.5)", fontFamily: "var(--font-mono)" }}
+                    width={55}
                     tickFormatter={(v) => v.toLocaleString()}
                   />
-                  <ReferenceLine y={avgTx} stroke="rgba(0,239,139,0.3)" strokeDasharray="3 3" label={{ value: 'avg', fill: 'rgba(0,239,139,0.5)', fontSize: 10 }} />
+                  <ReferenceLine y={avgTx} stroke="rgba(0,239,139,0.3)" strokeDasharray="3 3" label={{ value: 'avg', fill: 'rgba(0,239,139,0.5)', fontSize: 11 }} />
                   <RechartsTooltip content={<TransactionTooltip />} />
                   <Area
                     type="monotone"
@@ -506,21 +506,21 @@ export default function AnalyticsPage() {
           </div>
           <div className="chart-container">
             {stats?.gasHistory && stats.gasHistory.length > 1 ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={stats.gasHistory} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.05)" vertical={false} />
                   <XAxis
                     dataKey="time"
                     stroke="transparent"
-                    tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)", fontFamily: "var(--font-mono)" }}
+                    tick={{ fontSize: 12, fill: "rgba(255,255,255,0.5)", fontFamily: "var(--font-mono)" }}
                     interval="preserveStartEnd"
-                    tickMargin={10}
+                    tickMargin={12}
                   />
                   <YAxis
                     stroke="transparent"
-                    tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)", fontFamily: "var(--font-mono)" }}
+                    tick={{ fontSize: 12, fill: "rgba(255,255,255,0.5)", fontFamily: "var(--font-mono)" }}
                     tickFormatter={(v) => `${v.toFixed(0)}M`}
-                    width={45}
+                    width={50}
                   />
                   <RechartsTooltip content={<GasTooltip />} />
                   <Bar dataKey="gas" radius={[3, 3, 0, 0]} maxBarSize={24}>
@@ -550,20 +550,20 @@ export default function AnalyticsPage() {
               <div className="panel-meta">Smart contracts deployed</div>
             </div>
             <div className="chart-container">
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={stats.contractsHistory} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.05)" vertical={false} />
                   <XAxis
                     dataKey="time"
                     stroke="transparent"
-                    tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)", fontFamily: "var(--font-mono)" }}
+                    tick={{ fontSize: 12, fill: "rgba(255,255,255,0.5)", fontFamily: "var(--font-mono)" }}
                     interval="preserveStartEnd"
-                    tickMargin={10}
+                    tickMargin={12}
                   />
                   <YAxis
                     stroke="transparent"
-                    tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)", fontFamily: "var(--font-mono)" }}
-                    width={35}
+                    tick={{ fontSize: 12, fill: "rgba(255,255,255,0.5)", fontFamily: "var(--font-mono)" }}
+                    width={40}
                     allowDecimals={false}
                   />
                   <RechartsTooltip content={<ContractTooltip />} />
@@ -687,7 +687,7 @@ export default function AnalyticsPage() {
 
         .header-title {
           font-family: var(--font-mono);
-          font-size: 20px;
+          font-size: 24px;
           font-weight: 700;
           color: var(--text-primary);
           letter-spacing: 0.05em;
@@ -717,8 +717,8 @@ export default function AnalyticsPage() {
           border: none;
           color: var(--text-muted);
           font-family: var(--font-mono);
-          font-size: 11px;
-          padding: 8px 12px;
+          font-size: 13px;
+          padding: 10px 14px;
           cursor: pointer;
           transition: all 0.2s;
           letter-spacing: 0.05em;
@@ -780,22 +780,22 @@ export default function AnalyticsPage() {
 
         .hero-metric .label {
           font-family: var(--font-mono);
-          font-size: 10px;
+          font-size: 12px;
           color: var(--text-muted);
           letter-spacing: 0.15em;
-          margin-bottom: 4px;
+          margin-bottom: 6px;
         }
 
         .hero-metric .value {
           font-family: var(--font-mono);
-          font-size: 22px;
+          font-size: 26px;
           font-weight: 700;
           color: var(--text-primary);
         }
 
         .hero-metric.main .value {
           color: var(--flow-green);
-          font-size: 26px;
+          font-size: 30px;
         }
 
         .divider {
@@ -841,7 +841,7 @@ export default function AnalyticsPage() {
 
         .panel-title {
           font-family: var(--font-mono);
-          font-size: 12px;
+          font-size: 14px;
           font-weight: 600;
           color: var(--text-primary);
           letter-spacing: 0.08em;
@@ -851,7 +851,7 @@ export default function AnalyticsPage() {
 
         .panel-meta {
           font-family: var(--font-mono);
-          font-size: 11px;
+          font-size: 13px;
           color: var(--text-muted);
         }
 
@@ -868,22 +868,22 @@ export default function AnalyticsPage() {
           width: 100%;
           border-collapse: collapse;
           font-family: var(--font-mono);
-          font-size: 12px;
+          font-size: 14px;
         }
 
         .data-table th {
           text-align: left;
-          padding: var(--space-sm) var(--space-md);
+          padding: var(--space-md) var(--space-md);
           color: var(--text-muted);
           font-weight: 500;
-          font-size: 10px;
+          font-size: 12px;
           letter-spacing: 0.1em;
           background: rgba(0,0,0,0.2);
           border-bottom: 1px solid var(--border-subtle);
         }
 
         .data-table td {
-          padding: var(--space-sm) var(--space-md);
+          padding: var(--space-md) var(--space-md);
           border-bottom: 1px solid rgba(255,255,255,0.03);
           color: var(--text-primary);
         }
@@ -909,15 +909,16 @@ export default function AnalyticsPage() {
         .history-notice {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
           margin-top: var(--space-xl);
-          padding: var(--space-md) var(--space-lg);
+          padding: var(--space-lg);
           background: rgba(0, 239, 139, 0.03);
           border: 1px solid rgba(0, 239, 139, 0.1);
-          border-radius: 6px;
+          border-radius: 8px;
           font-family: var(--font-mono);
-          font-size: 12px;
+          font-size: 14px;
           color: var(--text-muted);
+          line-height: 1.5;
         }
 
         .notice-dot {
@@ -952,6 +953,10 @@ export default function AnalyticsPage() {
             align-items: flex-start;
           }
 
+          .header-title {
+            font-size: 20px;
+          }
+
           .header-right {
             width: 100%;
             justify-content: flex-start;
@@ -965,12 +970,24 @@ export default function AnalyticsPage() {
             padding: 0 var(--space-md);
           }
 
+          .hero-metric .label {
+            font-size: 11px;
+          }
+
           .hero-metric .value {
-            font-size: 16px;
+            font-size: 20px;
           }
 
           .hero-metric.main .value {
-            font-size: 18px;
+            font-size: 22px;
+          }
+
+          .panel-title {
+            font-size: 13px;
+          }
+
+          .panel-meta {
+            font-size: 12px;
           }
         }
       `}</style>
@@ -987,21 +1004,21 @@ function TransactionTooltip({ active, payload }: { active?: boolean; payload?: A
     <div style={{
       background: "rgba(10, 10, 11, 0.98)",
       border: "1px solid var(--border-default)",
-      borderRadius: 6,
-      padding: "12px 16px",
+      borderRadius: 8,
+      padding: "14px 18px",
       fontFamily: "var(--font-mono)",
-      minWidth: 180,
+      minWidth: 200,
       boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
     }}>
-      <div style={{ color: "var(--text-primary)", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+      <div style={{ color: "var(--text-primary)", fontSize: 14, fontWeight: 600, marginBottom: 10 }}>
         {data.fullDate}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <SwapOutlined style={{ color: "var(--flow-green)", fontSize: 14 }} />
-        <span style={{ color: "var(--flow-green)", fontSize: 18, fontWeight: 700 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <SwapOutlined style={{ color: "var(--flow-green)", fontSize: 16 }} />
+        <span style={{ color: "var(--flow-green)", fontSize: 20, fontWeight: 700 }}>
           {data.transactions?.toLocaleString()}
         </span>
-        <span style={{ color: "var(--text-muted)", fontSize: 11 }}>transactions</span>
+        <span style={{ color: "var(--text-muted)", fontSize: 13 }}>transactions</span>
       </div>
     </div>
   );
@@ -1016,21 +1033,21 @@ function GasTooltip({ active, payload }: { active?: boolean; payload?: Array<{ p
     <div style={{
       background: "rgba(10, 10, 11, 0.98)",
       border: "1px solid var(--border-default)",
-      borderRadius: 6,
-      padding: "12px 16px",
+      borderRadius: 8,
+      padding: "14px 18px",
       fontFamily: "var(--font-mono)",
-      minWidth: 180,
+      minWidth: 200,
       boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
     }}>
-      <div style={{ color: "var(--text-primary)", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+      <div style={{ color: "var(--text-primary)", fontSize: 14, fontWeight: 600, marginBottom: 10 }}>
         {data.fullDate}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <FireOutlined style={{ color: "#FF8C00", fontSize: 14 }} />
-        <span style={{ color: "#FF8C00", fontSize: 18, fontWeight: 700 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <FireOutlined style={{ color: "#FF8C00", fontSize: 16 }} />
+        <span style={{ color: "#FF8C00", fontSize: 20, fontWeight: 700 }}>
           {data.gas?.toFixed(2)}M
         </span>
-        <span style={{ color: "var(--text-muted)", fontSize: 11 }}>gas used</span>
+        <span style={{ color: "var(--text-muted)", fontSize: 13 }}>gas used</span>
       </div>
     </div>
   );
@@ -1045,21 +1062,21 @@ function ContractTooltip({ active, payload }: { active?: boolean; payload?: Arra
     <div style={{
       background: "rgba(10, 10, 11, 0.98)",
       border: "1px solid var(--border-default)",
-      borderRadius: 6,
-      padding: "12px 16px",
+      borderRadius: 8,
+      padding: "14px 18px",
       fontFamily: "var(--font-mono)",
-      minWidth: 180,
+      minWidth: 200,
       boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
     }}>
-      <div style={{ color: "var(--text-primary)", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+      <div style={{ color: "var(--text-primary)", fontSize: 14, fontWeight: 600, marginBottom: 10 }}>
         {data.fullDate}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <CodeOutlined style={{ color: "#A855F7", fontSize: 14 }} />
-        <span style={{ color: "#A855F7", fontSize: 18, fontWeight: 700 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <CodeOutlined style={{ color: "#A855F7", fontSize: 16 }} />
+        <span style={{ color: "#A855F7", fontSize: 20, fontWeight: 700 }}>
           {data.contracts?.toLocaleString()}
         </span>
-        <span style={{ color: "var(--text-muted)", fontSize: 11 }}>contracts deployed</span>
+        <span style={{ color: "var(--text-muted)", fontSize: 13 }}>contracts deployed</span>
       </div>
     </div>
   );
@@ -1073,12 +1090,12 @@ function NoDataState({ compact = false }: { compact?: boolean }) {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      height: compact ? 170 : 220,
+      height: compact ? 190 : 240,
       color: "var(--text-muted)",
       fontFamily: "var(--font-mono)",
-      fontSize: 11,
+      fontSize: 14,
     }}>
-      <BlockOutlined style={{ fontSize: 24, marginBottom: 12, opacity: 0.3 }} />
+      <BlockOutlined style={{ fontSize: 28, marginBottom: 14, opacity: 0.3 }} />
       <span>COLLECTING DATA...</span>
     </div>
   );

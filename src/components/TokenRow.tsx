@@ -2,6 +2,7 @@
 
 import { type TokenBalance, formatTokenBalance } from "@/lib/tokens";
 import { getTokenLogoUrl } from "@/lib/tokenLogo";
+import AddToWalletButton from "./AddToWalletButton";
 
 interface TokenRowProps {
   tokenBalance: TokenBalance;
@@ -22,6 +23,7 @@ export default function TokenRow({ tokenBalance }: TokenRowProps) {
         borderRadius: "var(--radius-md)",
         background: "var(--bg-secondary)",
         transition: "background 0.2s",
+        gap: "var(--space-sm)",
       }}
     >
       {/* Token Icon */}
@@ -115,6 +117,14 @@ export default function TokenRow({ tokenBalance }: TokenRowProps) {
           {token.symbol}
         </div>
       </div>
+
+      {/* Add to Wallet Button */}
+      <AddToWalletButton
+        tokenAddress={token.address}
+        tokenSymbol={token.symbol}
+        tokenDecimals={token.decimals}
+        tokenImage={logoUrl}
+      />
     </div>
   );
 }

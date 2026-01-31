@@ -1,43 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { Input, Select, Button, message } from "antd";
+import { usePathname } from "next/navigation";
+import { Select, Button } from "antd";
 import { MenuOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import MobileNav, { openMobileNav } from "./MobileNav";
+import SearchBar from "./SearchBar";
 
 export default function Header() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
   const [network, setNetwork] = useState<"mainnet" | "testnet">("mainnet");
-  const router = useRouter();
   const pathname = usePathname();
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-
-    setIsSearching(true);
-    const query = searchQuery.trim();
-
-    try {
-      // Detect type and navigate
-      if (/^0x[a-fA-F0-9]{64}$/.test(query)) {
-        // Could be tx hash or block hash - try tx first
-        router.push(`/tx/${query}`);
-      } else if (/^0x[a-fA-F0-9]{40}$/.test(query)) {
-        router.push(`/account/${query}`);
-      } else if (/^\d+$/.test(query)) {
-        router.push(`/block/${query}`);
-      } else {
-        message.warning("Invalid search query");
-        return;
-      }
-      setSearchQuery("");
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
   return (
     <header
@@ -108,16 +81,7 @@ export default function Header() {
 
           {/* Search - Desktop only */}
           <div className="desktop-only" style={{ flex: 1, maxWidth: 600 }}>
-            <Input.Search
-              placeholder="Search by address, tx hash, or block number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onSearch={handleSearch}
-              loading={isSearching}
-              allowClear
-              size="large"
-              style={{ fontFamily: "var(--font-mono)" }}
-            />
+            <SearchBar />
           </div>
 
           {/* Network Selector - Desktop only */}
@@ -145,6 +109,7 @@ export default function Header() {
                 },
                 {
                   value: "testnet",
+                  disabled: true,
                   label: (
                     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span
@@ -152,10 +117,21 @@ export default function Header() {
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          background: "var(--status-pending)",
+                          background: "var(--text-muted)",
                         }}
                       />
                       Testnet
+                      <span
+                        style={{
+                          fontSize: 10,
+                          padding: "2px 6px",
+                          background: "var(--bg-tertiary)",
+                          borderRadius: 4,
+                          color: "var(--text-muted)",
+                        }}
+                      >
+                        Coming Soon
+                      </span>
                     </span>
                   ),
                 },
@@ -176,10 +152,6 @@ export default function Header() {
           <MobileNav
             network={network}
             onNetworkChange={setNetwork}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onSearch={handleSearch}
-            isSearching={isSearching}
           />
         </div>
       </div>
@@ -191,6 +163,7 @@ export default function Header() {
             {[
               { path: "/", label: "Home" },
               { path: "/blocks", label: "Blocks" },
+              { path: "/defi", label: "DeFi" },
               { path: "/analytics", label: "Analytics" },
             ].map(({ path, label }) => {
               const isActive = path === "/" ? pathname === "/" : pathname.startsWith(path);

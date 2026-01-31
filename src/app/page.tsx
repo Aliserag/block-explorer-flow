@@ -99,7 +99,7 @@ export default async function HomePage() {
                   color: "var(--text-muted)",
                   background: "var(--bg-card)",
                   borderRadius: "var(--radius-md)",
-                  fontSize: 13,
+                  fontSize: 15,
                 }}
               >
                 Transaction history is being indexed...
@@ -120,7 +120,7 @@ export default async function HomePage() {
           background: "rgba(0, 239, 139, 0.03)",
           border: "1px solid rgba(0, 239, 139, 0.1)",
           borderRadius: 6,
-          fontSize: 12,
+          fontSize: 14,
           color: "var(--text-muted)",
           fontFamily: "var(--font-mono)",
         }}
@@ -187,7 +187,7 @@ function StatCard({
       <div
         className="mono"
         style={{
-          fontSize: 11,
+          fontSize: 13,
           color: accent ? "var(--flow-green)" : "var(--text-muted)",
           letterSpacing: "0.08em",
           marginBottom: 6,
@@ -198,7 +198,7 @@ function StatCard({
       <div
         className="mono"
         style={{
-          fontSize: 20,
+          fontSize: 24,
           fontWeight: 700,
           color: accent ? "var(--flow-green)" : "var(--text-primary)",
         }}
@@ -208,7 +208,7 @@ function StatCard({
       {sub && (
         <div
           className="mono"
-          style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}
+          style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}
         >
           {sub}
         </div>
@@ -229,7 +229,7 @@ function SectionHeader({ title, href }: { title: string; href: string }) {
     >
       <h2
         style={{
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: 600,
           color: "var(--text-primary)",
         }}
@@ -239,7 +239,7 @@ function SectionHeader({ title, href }: { title: string; href: string }) {
       <Link
         href={href}
         style={{
-          fontSize: 12,
+          fontSize: 14,
           color: "var(--text-muted)",
           textDecoration: "none",
         }}
@@ -290,26 +290,26 @@ function BlockRow({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 12,
+            fontSize: 14,
             color: "var(--text-muted)",
           }}
         >
           Bk
         </div>
         <div>
-          <div className="mono" style={{ fontSize: 13, color: "var(--flow-green)", fontWeight: 500 }}>
+          <div className="mono" style={{ fontSize: 15, color: "var(--flow-green)", fontWeight: 500 }}>
             {Number(block.number).toLocaleString()}
           </div>
-          <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          <div className="mono" style={{ fontSize: 13, color: "var(--text-muted)" }}>
             {timeAgo}
           </div>
         </div>
       </div>
       <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+        <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>
           {block.transactionCount} txns
         </div>
-        <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+        <div className="mono" style={{ fontSize: 13, color: "var(--text-muted)" }}>
           {block.miner.slice(0, 8)}...
         </div>
       </div>
@@ -360,26 +360,26 @@ function TxRow({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 12,
+            fontSize: 14,
             color: "var(--text-muted)",
           }}
         >
           Tx
         </div>
         <div>
-          <div className="mono" style={{ fontSize: 13, color: "var(--flow-green)", fontWeight: 500 }}>
+          <div className="mono" style={{ fontSize: 15, color: "var(--flow-green)", fontWeight: 500 }}>
             {tx.hash.slice(0, 14)}...
           </div>
-          <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          <div className="mono" style={{ fontSize: 13, color: "var(--text-muted)" }}>
             {timeAgo}
           </div>
         </div>
       </div>
       <div style={{ textAlign: "right" }}>
-        <div className="mono" style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+        <div className="mono" style={{ fontSize: 14, color: "var(--text-secondary)" }}>
           {valueInFlow} FLOW
         </div>
-        <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+        <div className="mono" style={{ fontSize: 13, color: "var(--text-muted)" }}>
           {tx.from.slice(0, 8)}... → {tx.to ? `${tx.to.slice(0, 8)}...` : "Contract"}
         </div>
       </div>
