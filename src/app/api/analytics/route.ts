@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBlocks, getLatestBlockNumber, getBlock } from "@/lib/rpc";
+import { getBlocks, getLatestBlockNumber } from "@/lib/rpc";
 import { isPonderAvailable } from "@/lib/ponder";
+import { isValidNetwork, type NetworkId } from "@/lib/chains";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const range = (searchParams.get("range") as keyof typeof TIME_RANGES) || "24h";
 
+    // Network param (defaults to mainnet)
+    const networkParam = searchParams.get("network") || "mainnet";
+    const network: NetworkId = isValidNetwork(networkParam) ? networkParam : "mainnet";
+
     const timeRange = TIME_RANGES[range] || TIME_RANGES["24h"];
-    const latestBlockNumber = await getLatestBlockNumber();
+    const latestBlockNumber = await getLatestBlockNumber(network);
 
     // Calculate how many blocks we need
     const estimatedBlocks = Math.min(
@@ -37,7 +42,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Fetch blocks
-    const blocks = await getBlocks(latestBlockNumber, estimatedBlocks);
+    const blocks = await getBlocks(latestBlockNumber, estimatedBlocks, network);
 
     if (blocks.length < 2) {
       return NextResponse.json({ error: "Not enough blocks" }, { status: 500 });

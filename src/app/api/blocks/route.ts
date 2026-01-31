@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { getBlocks, getLatestBlockNumber, formatBlock } from "@/lib/rpc";
+import { isValidNetwork, type NetworkId } from "@/lib/chains";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+
+    // Network param (defaults to mainnet)
+    const networkParam = searchParams.get("network") || "mainnet";
+    const network: NetworkId = isValidNetwork(networkParam) ? networkParam : "mainnet";
 
     // Pagination params
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
@@ -12,12 +17,12 @@ export async function GET(request: Request) {
     // Legacy support for limit param
     const legacyLimit = searchParams.get("limit");
 
-    const latestBlockNumber = await getLatestBlockNumber();
+    const latestBlockNumber = await getLatestBlockNumber(network);
 
     if (legacyLimit) {
       // Legacy behavior for backwards compatibility
       const limit = Math.min(parseInt(legacyLimit), 50);
-      const blocks = await getBlocks(latestBlockNumber, limit);
+      const blocks = await getBlocks(latestBlockNumber, limit, network);
       const formattedBlocks = blocks.map(formatBlock);
 
       return NextResponse.json({
@@ -35,7 +40,7 @@ export async function GET(request: Request) {
     const startBlock = latestBlockNumber - BigInt((page - 1) * pageSize);
     const endBlockNum = Math.max(0, Number(startBlock) - pageSize + 1);
 
-    const blocks = await getBlocks(startBlock, pageSize);
+    const blocks = await getBlocks(startBlock, pageSize, network);
     const formattedBlocks = blocks.map(formatBlock);
 
     // Calculate display info

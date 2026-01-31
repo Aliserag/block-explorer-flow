@@ -6,6 +6,7 @@ import {
   isPonderAvailable,
   getPonderSyncStatus,
 } from "@/lib/ponder";
+import { isValidNetwork, type NetworkId } from "@/lib/chains";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,30 @@ interface AnalyticsResponse {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const range = searchParams.get("range") || "24h";
+
+  // Network param (defaults to mainnet)
+  const networkParam = searchParams.get("network") || "mainnet";
+  const network: NetworkId = isValidNetwork(networkParam) ? networkParam : "mainnet";
+
+  // For testnet, indexed data is not available (Ponder only runs on mainnet)
+  if (network === "testnet") {
+    return NextResponse.json<AnalyticsResponse>({
+      available: false,
+      synced: false,
+      latestIndexedBlock: null,
+      range,
+      stats: {
+        totalTransactions: 0,
+        totalBlocks: 0,
+        totalContractsDeployed: 0,
+        totalTokenTransfers: 0,
+        avgTxPerBlock: 0,
+        avgGasPrice: "0",
+      },
+      timeSeries: [],
+      recentContracts: [],
+    });
+  }
 
   // Check if Ponder is available
   const ponderAvailable = await isPonderAvailable();

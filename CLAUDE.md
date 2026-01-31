@@ -145,13 +145,71 @@ ponder.on("ERC20:Transfer", async ({ event, context }) => {
 - `_meta.status.flowEvm.ready: false` = Still syncing historical blocks
 - Data only appears in API after block is fully processed
 
-### Ponder Schema
+### Ponder Schema Summary
 
-Tables: `blocks`, `transactions`, `accounts`, `tokens`, `tokenTransfers`, `accountTokenBalances`, `nftCollections`, `nfts`, `nftTransfers`, `nftOwnership`, `contracts`, `dailyStats`, `hourlyStats`
+The Ponder indexer maintains 28 tables across 7 categories. Import from `../ponder.schema` (relative path), use `@/generated` for ponder registry. Field naming: `camelCase`.
 
-- Import from `../ponder.schema` (relative path)
-- Use `@/generated` for ponder registry
-- Field naming: `camelCase` (e.g., `firstSeenBlock`, `gasUsed`)
+#### Core Tables (4)
+| Table | Primary Key | Purpose |
+|-------|-------------|---------|
+| `blocks` | `number` | Block headers with gas, miner, timestamp |
+| `transactions` | `hash` | Full tx data + `methodName`, `txCategory`, `errorMessage` |
+| `accounts` | `address` | Account stats + `accountType` (eoa/contract/coa), `label` |
+| `addressLabels` | `address` | Curated labels (DEX, bridge, CEX, etc.) |
+
+#### Token Tables (4)
+| Table | Primary Key | Purpose |
+|-------|-------------|---------|
+| `tokens` | `address` | ERC-20 metadata + `iconUrl`, `isVerified`, `website` |
+| `tokenTransfers` | `id` (txHash-logIndex) | All ERC-20 transfer events |
+| `accountTokenBalances` | `id` (account-token) | Current token balances per account |
+| `tokenApprovals` | `id` (token-owner-spender) | Active approvals (revoke.cash-style) |
+
+#### NFT Tables (8)
+| Table | Primary Key | Purpose |
+|-------|-------------|---------|
+| `nftCollections` | `address` | Collection metadata + `uniqueOwnerCount`, `creatorAddress` |
+| `nfts` | `id` (collection-tokenId) | Individual NFTs + `imageUrl`, `metadata` |
+| `nftTransfers` | `id` (txHash-logIndex) | ERC-721/1155 transfer events |
+| `nftOwnership` | `id` (owner-collection-tokenId) | Current NFT ownership |
+| `nftCreators` | `address` | Creator aggregate stats (collections, mints, owners) |
+| `nftCreatorDailyStats` | `id` (creator-date) | Daily creator activity |
+| `nftCollectors` | `address` | Collector stats (owned, bought, sold) |
+| `nftCollectorHoldings` | `id` (collector-collection) | Holdings per collection |
+
+#### Contract Tables (5)
+| Table | Primary Key | Purpose |
+|-------|-------------|---------|
+| `contracts` | `address` | Deployment info + `contractType`, `isProxy`, `uniqueCallerCount` |
+| `contractCallers` | `id` (contract-caller) | All-time unique callers per contract |
+| `contractDailyCallers` | `id` (contract-caller-date) | Daily unique callers |
+| `contractDailyStats` | `id` (contract-date) | Daily contract activity |
+| `eventLogs` | `id` (txHash-logIndex) | All event logs with `topic0-3`, `eventName` |
+
+#### Deployer (Builder) Tables (2)
+| Table | Primary Key | Purpose |
+|-------|-------------|---------|
+| `deployers` | `address` | Builder stats (contracts deployed, total users) |
+| `deployerDailyStats` | `id` (deployer-date) | Daily deployer activity |
+
+#### Analytics Tables (5)
+| Table | Primary Key | Purpose |
+|-------|-------------|---------|
+| `dailyStats` | `date` (YYYY-MM-DD) | Network-wide daily aggregates |
+| `hourlyStats` | `hour` (YYYY-MM-DD-HH) | Network-wide hourly aggregates |
+| `hourlyGasStats` | `hour` | Gas price stats (min/max/avg/median) |
+| `tokenDailyStats` | `id` (token-date) | Per-token daily volume/transfers |
+| `nftCollectionDailyStats` | `id` (collection-date) | Per-collection daily activity |
+
+#### Key Fields by Table
+
+**transactions** - `methodName` (decoded from 4-byte selector), `txCategory` (transfer/swap/mint/approve/bridge/contract_call/contract_deploy)
+
+**accounts** - `accountType` (eoa/contract/coa - auto-detected during indexing)
+
+**contracts** - `contractType` (erc20/erc721/erc1155/proxy/other), `isProxy`, `implementationAddress`
+
+**tokenApprovals** - `isUnlimited` (true if MaxUint256 approval)
 
 ## Environment Variables
 
@@ -567,59 +625,48 @@ The project now has custom agents in `.claude/agents/`:
 
 ---
 
-## Future Ponder Schema Improvements
+## Ponder Schema Improvements (Implemented 2026-01-31)
 
-These are proposed schema additions for future releases. Adding them requires re-indexing, so batch together when implementing.
+These schema improvements have been implemented and are now part of the indexed data.
 
-> **IMPORTANT: Implementation Strategy**
->
-> Do NOT implement these changes until after full genesis indexing is complete. The priority is getting the explorer live with the current schema first. Once `ponder-genesis` has fully synced (54M+ blocks), then:
-> 1. Implement all schema changes in a single batch
-> 2. Deploy new Ponder instance with updated schema
-> 3. Re-index from genesis with new fields populated
-> 4. Switch frontend to new instance once caught up
-> 5. Delete old instance
->
-> This ensures we ship faster now and avoid multiple expensive re-indexing cycles.
-
-### 1. Tokens Table - Icon & Metadata
+### 1. Tokens Table - Icon & Metadata ✅
 ```typescript
 iconUrl: t.text(),           // Token logo URL (from token list or CoinGecko)
 isVerified: t.boolean(),     // Verified/trusted token list
 website: t.text(),           // Project website
 ```
-**Use case:** Wallet display needs token icons
+**Status:** Schema added. Fields initialized as null, can be populated from token list or external API.
 
-### 2. Accounts Table - Type Classification
+### 2. Accounts Table - Type Classification ✅
 ```typescript
 accountType: t.text(),       // 'eoa' | 'contract' | 'coa' (Cadence Owned Account)
 label: t.text(),             // Known address label (e.g., "Uniswap Router")
 ```
-**Use case:** Flow-specific COA detection, known address labeling
+**Status:** Schema added. `accountType` auto-detected during indexing (COA detection via 20+ leading zeros). Labels initialized as null.
 
-### 3. Contracts Table - Verification & Type
+### 3. Contracts Table - Verification & Type ✅
 ```typescript
 isVerified: t.boolean(),     // Verification status from Sourcify/Blockscout
 name: t.text(),              // Contract name if verified
 contractType: t.text(),      // 'erc20' | 'erc721' | 'erc1155' | 'proxy' | 'other'
 ```
-**Use case:** Show verification badge, auto-detect token contracts
+**Status:** Schema added. `contractType` auto-detected from Transfer events (erc20/erc721/erc1155). Verification fields initialized as null.
 
-### 4. Transactions Table - Error Handling
+### 4. Transactions Table - Error Handling ✅
 ```typescript
 errorMessage: t.text(),      // Revert reason for failed transactions
 methodName: t.text(),        // Human-readable: "transfer", "swap", "approve", etc.
 ```
-**Use case:** Better error debugging, human-readable tx descriptions
+**Status:** Schema added. `methodName` auto-decoded from 4-byte selector (40+ common methods). `errorMessage` initialized as null (future: fetch revert reasons).
 
-### 5. NFTs Table - Metadata Enrichment
+### 5. NFTs Table - Metadata Enrichment ✅
 ```typescript
 imageUrl: t.text(),          // Direct image URL (fetched from tokenUri)
 metadata: t.text(),          // Full JSON metadata blob
 ```
-**Use case:** Display NFT images without client-side fetching
+**Status:** Schema added. Fields initialized as null (future: async metadata fetching from tokenUri).
 
-### 6. New Table: Address Labels
+### 6. New Table: Address Labels ✅
 ```typescript
 export const addressLabels = onchainTable("address_labels", (t) => ({
   address: t.hex().primaryKey(),
@@ -629,23 +676,146 @@ export const addressLabels = onchainTable("address_labels", (t) => ({
   logoUrl: t.text(),
 }));
 ```
-**Use case:** Show friendly names for known contracts/wallets
+**Status:** Table added. Can be populated from curated address label list.
+
+### Implementation Status
+
+| Addition | Status | Auto-populated |
+|----------|--------|----------------|
+| Token `iconUrl`, `isVerified`, `website` | ✅ Added | No (needs external data) |
+| Account `accountType` | ✅ Added | Yes (COA detection) |
+| Account `label` | ✅ Added | No (needs curated list) |
+| Transaction `methodName` | ✅ Added | Yes (4-byte selector decode) |
+| Transaction `errorMessage` | ✅ Added | No (needs revert reason fetch) |
+| Contract `isVerified`, `name` | ✅ Added | No (needs Sourcify integration) |
+| Contract `contractType` | ✅ Added | Yes (from Transfer events) |
+| NFT `imageUrl`, `metadata` | ✅ Added | No (needs tokenUri fetch) |
+| Address labels table | ✅ Added | No (needs curated list) |
+
+### What's Auto-Populated During Indexing
+
+- `accountType`: Detects COA (20+ leading zeros), contract, or EOA
+- `methodName`: Decodes 40+ common selectors (transfer, approve, swap, mint, etc.)
+- `contractType`: Set to erc20/erc721/erc1155 when Transfer events are detected
+
+### Future Enhancements (Requires External Data)
+
+- Token icons: Populate from `data/tokens.json` or CoinGecko API
+- Address labels: Curate list of known Flow addresses (bridges, DEXes, etc.)
+- NFT metadata: Async job to fetch and parse tokenUri
+- Verification status: Integrate with Sourcify API
+
+---
+
+## Future Security Improvements
+
+### 1. API Rate Limiting
+
+Implement rate limiting to prevent abuse and ensure fair usage of API endpoints.
+
+**Recommended Solution: Upstash Redis + @upstash/ratelimit**
+
+```bash
+npm install @upstash/ratelimit @upstash/redis
+```
+
+**Environment Variables (add to Vercel):**
+```
+UPSTASH_REDIS_REST_URL=<from-upstash-dashboard>
+UPSTASH_REDIS_REST_TOKEN=<from-upstash-dashboard>
+```
+
+**Implementation Pattern** (`src/lib/ratelimit.ts`):
+```typescript
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+export const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(100, "1 m"), // 100 requests per minute
+  analytics: true,
+});
+
+export async function checkRateLimit(identifier: string) {
+  const { success, limit, reset, remaining } = await ratelimit.limit(identifier);
+  return { success, limit, reset, remaining };
+}
+```
+
+**Usage in API routes:**
+```typescript
+import { checkRateLimit } from "@/lib/ratelimit";
+import { headers } from "next/headers";
+
+export async function GET(request: NextRequest) {
+  const headersList = headers();
+  const ip = headersList.get("x-forwarded-for") || "anonymous";
+
+  const { success, remaining } = await checkRateLimit(ip);
+  if (!success) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: { "X-RateLimit-Remaining": "0" } }
+    );
+  }
+
+  // ... rest of handler
+}
+```
+
+**Recommended Limits:**
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| `/api/blocks` | 100/min | Sliding |
+| `/api/analytics` | 30/min | Sliding |
+| `/api/tokens/*` | 60/min | Sliding |
+| `/api/verify/*` | 10/min | Sliding |
+
+**Setup Steps:**
+1. Create free Upstash account at https://upstash.com
+2. Create new Redis database (choose region closest to Vercel deployment)
+3. Copy REST URL and token to Vercel environment variables
+4. Implement rate limiting middleware
+
+### 2. Security Headers
+
+Add security headers in `next.config.js`:
+
+```javascript
+const securityHeaders = [
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-XSS-Protection', value: '1; mode=block' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" },
+];
+
+module.exports = {
+  async headers() {
+    return [{ source: '/:path*', headers: securityHeaders }];
+  },
+};
+```
+
+### 3. Error Message Sanitization
+
+Never expose internal error details to clients. Pattern to follow:
+
+```typescript
+// ❌ Bad - exposes internal details
+return NextResponse.json({ error: "Failed", details: String(error) }, { status: 500 });
+
+// ✅ Good - generic error, log internally
+console.error("Token fetch error:", error);
+return NextResponse.json({ error: "Failed to fetch tokens" }, { status: 500 });
+```
 
 ### Priority Matrix
 
-| Addition | Usefulness | Effort | Priority |
-|----------|------------|--------|----------|
-| Token `iconUrl` | High | Low | P1 |
-| Account `accountType` | High | Low | P1 |
-| Transaction `methodName` | High | Medium | P1 |
-| Transaction `errorMessage` | Medium | Medium | P2 |
-| Contract `isVerified`, `contractType` | Medium | Low | P2 |
-| NFT `imageUrl`, `metadata` | Medium | High | P3 |
-| Address labels table | Medium | Low | P2 |
-
-### Implementation Notes
-
-- Token icons can be populated from `data/tokens.json` during indexing
-- `accountType` COA detection: address has 20+ leading zeros
-- `methodName` can be derived from 4-byte signature using a signature database
-- NFT metadata fetching is slow - consider doing it async or on-demand
+| Improvement | Impact | Effort | Priority |
+|-------------|--------|--------|----------|
+| Rate limiting | High | Medium | P1 |
+| Security headers | Medium | Low | P1 |
+| Error sanitization | Medium | Low | P1 (done) |
+| CORS configuration | Medium | Low | P2 |
+| Request validation | Medium | Medium | P2 |

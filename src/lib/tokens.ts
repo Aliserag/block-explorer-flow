@@ -2,6 +2,7 @@ import { type Address, formatUnits } from "viem";
 import { getClient } from "./rpc";
 import { type NetworkId } from "./chains";
 import localTokens from "@/data/tokens.json";
+import localTokensTestnet from "@/data/tokens-testnet.json";
 
 // Token interface
 export interface Token {
@@ -51,17 +52,22 @@ const erc20Abi = [
   },
 ] as const;
 
-// Cache for token registry
-let tokenRegistryCache: Token[] | null = null;
+// Cache for token registry (per network)
+const tokenRegistryCache: Record<NetworkId, Token[] | null> = {
+  mainnet: null,
+  testnet: null,
+};
 
 // Load tokens from local registry (comprehensive list from fixes.world + official tokens)
-function fetchTokenRegistry(): Token[] {
-  if (tokenRegistryCache) {
-    return tokenRegistryCache;
+function fetchTokenRegistry(network: NetworkId = "mainnet"): Token[] {
+  if (tokenRegistryCache[network]) {
+    return tokenRegistryCache[network]!;
   }
 
-  // Use local tokens.json which has 59+ tokens
-  const tokens: Token[] = localTokens.map((token) => ({
+  // Use network-specific token list
+  const rawTokens = network === "testnet" ? localTokensTestnet : localTokens;
+
+  const tokens: Token[] = rawTokens.map((token) => ({
     address: token.address,
     name: token.name,
     symbol: token.symbol,
@@ -69,13 +75,13 @@ function fetchTokenRegistry(): Token[] {
     logoURI: token.logoURI || null,
   }));
 
-  tokenRegistryCache = tokens;
+  tokenRegistryCache[network] = tokens;
   return tokens;
 }
 
 // Get token list (combines registry with any additional known tokens)
-export function getTokenList(): Token[] {
-  const registryTokens = fetchTokenRegistry();
+export function getTokenList(network: NetworkId = "mainnet"): Token[] {
+  const registryTokens = fetchTokenRegistry(network);
 
   // Additional tokens not in the official registry
   // These will use default letter-based logos
@@ -102,7 +108,7 @@ export async function getTokenBalances(
   network: NetworkId = "mainnet"
 ): Promise<TokenBalance[]> {
   const client = getClient(network);
-  const tokens = getTokenList();
+  const tokens = getTokenList(network);
 
   if (tokens.length === 0) {
     return [];

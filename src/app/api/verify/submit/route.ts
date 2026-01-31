@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyContract } from '@/lib/blockscout-verifier';
 import { storeVerifiedContract, initializeVerifiedContractsTable } from '@/lib/verified-contracts-db';
 import { createPublicClient, http, getAddress, isAddress } from 'viem';
+import { chains, isValidNetwork, type NetworkId } from '@/lib/chains';
 
-const FLOW_RPC_URL = process.env.NEXT_PUBLIC_FLOW_RPC_URL || 'https://mainnet.evm.nodes.onflow.org';
+// Network-specific RPC URLs
+function getRpcUrl(network: NetworkId): string {
+  if (network === 'testnet') {
+    return chains.testnet.rpcUrls.default.http[0];
+  }
+  return process.env.NEXT_PUBLIC_FLOW_RPC_URL || chains.mainnet.rpcUrls.default.http[0];
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +24,7 @@ interface VerifyRequestBody {
   evmVersion?: string;
   constructorArgs?: string;
   libraries?: Record<string, string>;
+  network?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -41,6 +49,9 @@ export async function POST(request: NextRequest) {
 
     const checksumAddress = getAddress(body.address);
 
+    // Network param (defaults to mainnet)
+    const network: NetworkId = isValidNetwork(body.network || '') ? (body.network as NetworkId) : 'mainnet';
+
     // Validate source files
     if (Object.keys(body.sourceFiles).length === 0) {
       return NextResponse.json(
@@ -49,9 +60,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch the deployed bytecode from the chain
+    // Fetch the deployed bytecode from the chain using network-specific RPC
     const client = createPublicClient({
-      transport: http(FLOW_RPC_URL),
+      transport: http(getRpcUrl(network)),
     });
 
     const deployedBytecode = await client.getCode({ address: checksumAddress });

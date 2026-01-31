@@ -29,12 +29,50 @@ type Query {
   tokenTransferss(where: tokenTransfersFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): tokenTransfersPage!
   accountTokenBalances(id: String!): accountTokenBalances
   accountTokenBalancess(where: accountTokenBalancesFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): accountTokenBalancesPage!
+  nftCollections(address: String!): nftCollections
+  nftCollectionss(where: nftCollectionsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): nftCollectionsPage!
+  nfts(id: String!): nfts
+  nftss(where: nftsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): nftsPage!
+  nftTransfers(id: String!): nftTransfers
+  nftTransferss(where: nftTransfersFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): nftTransfersPage!
+  nftOwnership(id: String!): nftOwnership
+  nftOwnerships(where: nftOwnershipFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): nftOwnershipPage!
   contracts(address: String!): contracts
   contractss(where: contractsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): contractsPage!
+  deployers(address: String!): deployers
+  deployerss(where: deployersFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): deployersPage!
+  deployerDailyStats(id: String!): deployerDailyStats
+  deployerDailyStatss(where: deployerDailyStatsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): deployerDailyStatsPage!
   dailyStats(date: String!): dailyStats
   dailyStatss(where: dailyStatsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): dailyStatsPage!
   hourlyStats(hour: String!): hourlyStats
   hourlyStatss(where: hourlyStatsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): hourlyStatsPage!
+  addressLabels(address: String!): addressLabels
+  addressLabelss(where: addressLabelsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): addressLabelsPage!
+  eventLogs(id: String!): eventLogs
+  eventLogss(where: eventLogsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): eventLogsPage!
+  tokenDailyStats(id: String!): tokenDailyStats
+  tokenDailyStatss(where: tokenDailyStatsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): tokenDailyStatsPage!
+  contractDailyStats(id: String!): contractDailyStats
+  contractDailyStatss(where: contractDailyStatsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): contractDailyStatsPage!
+  contractCallers(id: String!): contractCallers
+  contractCallerss(where: contractCallersFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): contractCallersPage!
+  contractDailyCallers(id: String!): contractDailyCallers
+  contractDailyCallerss(where: contractDailyCallersFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): contractDailyCallersPage!
+  tokenApprovals(id: String!): tokenApprovals
+  tokenApprovalss(where: tokenApprovalsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): tokenApprovalsPage!
+  hourlyGasStats(hour: String!): hourlyGasStats
+  hourlyGasStatss(where: hourlyGasStatsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): hourlyGasStatsPage!
+  nftCreators(address: String!): nftCreators
+  nftCreatorss(where: nftCreatorsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): nftCreatorsPage!
+  nftCreatorDailyStats(id: String!): nftCreatorDailyStats
+  nftCreatorDailyStatss(where: nftCreatorDailyStatsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): nftCreatorDailyStatsPage!
+  nftCollectors(address: String!): nftCollectors
+  nftCollectorss(where: nftCollectorsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): nftCollectorsPage!
+  nftCollectorHoldings(id: String!): nftCollectorHoldings
+  nftCollectorHoldingss(where: nftCollectorHoldingsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): nftCollectorHoldingsPage!
+  nftCollectionDailyStats(id: String!): nftCollectionDailyStats
+  nftCollectionDailyStatss(where: nftCollectionDailyStatsFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): nftCollectionDailyStatsPage!
   _meta: Meta
 }
 
@@ -164,6 +202,9 @@ type transactions {
   type: Int!
   status: Int
   timestamp: BigInt!
+  errorMessage: String
+  methodName: String
+  txCategory: String
 }
 
 type transactionsPage {
@@ -305,6 +346,36 @@ input transactionsFilter {
   timestamp_lt: BigInt
   timestamp_gte: BigInt
   timestamp_lte: BigInt
+  errorMessage: String
+  errorMessage_not: String
+  errorMessage_in: [String]
+  errorMessage_not_in: [String]
+  errorMessage_contains: String
+  errorMessage_not_contains: String
+  errorMessage_starts_with: String
+  errorMessage_ends_with: String
+  errorMessage_not_starts_with: String
+  errorMessage_not_ends_with: String
+  methodName: String
+  methodName_not: String
+  methodName_in: [String]
+  methodName_not_in: [String]
+  methodName_contains: String
+  methodName_not_contains: String
+  methodName_starts_with: String
+  methodName_ends_with: String
+  methodName_not_starts_with: String
+  methodName_not_ends_with: String
+  txCategory: String
+  txCategory_not: String
+  txCategory_in: [String]
+  txCategory_not_in: [String]
+  txCategory_contains: String
+  txCategory_not_contains: String
+  txCategory_starts_with: String
+  txCategory_ends_with: String
+  txCategory_not_starts_with: String
+  txCategory_not_ends_with: String
 }
 
 type accounts {
@@ -315,6 +386,8 @@ type accounts {
   lastSeenBlock: BigInt!
   firstSeenTimestamp: BigInt
   lastSeenTimestamp: BigInt
+  accountType: String
+  label: String
 }
 
 type accountsPage {
@@ -380,6 +453,26 @@ input accountsFilter {
   lastSeenTimestamp_lt: BigInt
   lastSeenTimestamp_gte: BigInt
   lastSeenTimestamp_lte: BigInt
+  accountType: String
+  accountType_not: String
+  accountType_in: [String]
+  accountType_not_in: [String]
+  accountType_contains: String
+  accountType_not_contains: String
+  accountType_starts_with: String
+  accountType_ends_with: String
+  accountType_not_starts_with: String
+  accountType_not_ends_with: String
+  label: String
+  label_not: String
+  label_in: [String]
+  label_not_in: [String]
+  label_contains: String
+  label_not_contains: String
+  label_starts_with: String
+  label_ends_with: String
+  label_not_starts_with: String
+  label_not_ends_with: String
 }
 
 type tokens {
@@ -392,6 +485,9 @@ type tokens {
   holderCount: Int!
   firstSeenBlock: BigInt!
   firstSeenTimestamp: BigInt!
+  iconUrl: String
+  isVerified: Boolean
+  website: String
 }
 
 type tokensPage {
@@ -481,6 +577,30 @@ input tokensFilter {
   firstSeenTimestamp_lt: BigInt
   firstSeenTimestamp_gte: BigInt
   firstSeenTimestamp_lte: BigInt
+  iconUrl: String
+  iconUrl_not: String
+  iconUrl_in: [String]
+  iconUrl_not_in: [String]
+  iconUrl_contains: String
+  iconUrl_not_contains: String
+  iconUrl_starts_with: String
+  iconUrl_ends_with: String
+  iconUrl_not_starts_with: String
+  iconUrl_not_ends_with: String
+  isVerified: Boolean
+  isVerified_not: Boolean
+  isVerified_in: [Boolean]
+  isVerified_not_in: [Boolean]
+  website: String
+  website_not: String
+  website_in: [String]
+  website_not_in: [String]
+  website_contains: String
+  website_not_contains: String
+  website_starts_with: String
+  website_ends_with: String
+  website_not_starts_with: String
+  website_not_ends_with: String
 }
 
 type tokenTransfers {
@@ -662,6 +782,538 @@ input accountTokenBalancesFilter {
   lastUpdatedTimestamp_lte: BigInt
 }
 
+type nftCollections {
+  address: String!
+  name: String
+  symbol: String
+  standard: String!
+  totalSupply: Int
+  transferCount: Int!
+  holderCount: Int!
+  uniqueOwnerCount: Int!
+  creatorAddress: String
+  mintCount: Int
+  burnCount: Int
+  firstSeenBlock: BigInt!
+  firstSeenTimestamp: BigInt!
+  iconUrl: String
+  bannerUrl: String
+  description: String
+  website: String
+  isVerified: Boolean
+}
+
+type nftCollectionsPage {
+  items: [nftCollections!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input nftCollectionsFilter {
+  AND: [nftCollectionsFilter]
+  OR: [nftCollectionsFilter]
+  address: String
+  address_not: String
+  address_in: [String]
+  address_not_in: [String]
+  address_contains: String
+  address_not_contains: String
+  address_starts_with: String
+  address_ends_with: String
+  address_not_starts_with: String
+  address_not_ends_with: String
+  name: String
+  name_not: String
+  name_in: [String]
+  name_not_in: [String]
+  name_contains: String
+  name_not_contains: String
+  name_starts_with: String
+  name_ends_with: String
+  name_not_starts_with: String
+  name_not_ends_with: String
+  symbol: String
+  symbol_not: String
+  symbol_in: [String]
+  symbol_not_in: [String]
+  symbol_contains: String
+  symbol_not_contains: String
+  symbol_starts_with: String
+  symbol_ends_with: String
+  symbol_not_starts_with: String
+  symbol_not_ends_with: String
+  standard: String
+  standard_not: String
+  standard_in: [String]
+  standard_not_in: [String]
+  standard_contains: String
+  standard_not_contains: String
+  standard_starts_with: String
+  standard_ends_with: String
+  standard_not_starts_with: String
+  standard_not_ends_with: String
+  totalSupply: Int
+  totalSupply_not: Int
+  totalSupply_in: [Int]
+  totalSupply_not_in: [Int]
+  totalSupply_gt: Int
+  totalSupply_lt: Int
+  totalSupply_gte: Int
+  totalSupply_lte: Int
+  transferCount: Int
+  transferCount_not: Int
+  transferCount_in: [Int]
+  transferCount_not_in: [Int]
+  transferCount_gt: Int
+  transferCount_lt: Int
+  transferCount_gte: Int
+  transferCount_lte: Int
+  holderCount: Int
+  holderCount_not: Int
+  holderCount_in: [Int]
+  holderCount_not_in: [Int]
+  holderCount_gt: Int
+  holderCount_lt: Int
+  holderCount_gte: Int
+  holderCount_lte: Int
+  uniqueOwnerCount: Int
+  uniqueOwnerCount_not: Int
+  uniqueOwnerCount_in: [Int]
+  uniqueOwnerCount_not_in: [Int]
+  uniqueOwnerCount_gt: Int
+  uniqueOwnerCount_lt: Int
+  uniqueOwnerCount_gte: Int
+  uniqueOwnerCount_lte: Int
+  creatorAddress: String
+  creatorAddress_not: String
+  creatorAddress_in: [String]
+  creatorAddress_not_in: [String]
+  creatorAddress_contains: String
+  creatorAddress_not_contains: String
+  creatorAddress_starts_with: String
+  creatorAddress_ends_with: String
+  creatorAddress_not_starts_with: String
+  creatorAddress_not_ends_with: String
+  mintCount: Int
+  mintCount_not: Int
+  mintCount_in: [Int]
+  mintCount_not_in: [Int]
+  mintCount_gt: Int
+  mintCount_lt: Int
+  mintCount_gte: Int
+  mintCount_lte: Int
+  burnCount: Int
+  burnCount_not: Int
+  burnCount_in: [Int]
+  burnCount_not_in: [Int]
+  burnCount_gt: Int
+  burnCount_lt: Int
+  burnCount_gte: Int
+  burnCount_lte: Int
+  firstSeenBlock: BigInt
+  firstSeenBlock_not: BigInt
+  firstSeenBlock_in: [BigInt]
+  firstSeenBlock_not_in: [BigInt]
+  firstSeenBlock_gt: BigInt
+  firstSeenBlock_lt: BigInt
+  firstSeenBlock_gte: BigInt
+  firstSeenBlock_lte: BigInt
+  firstSeenTimestamp: BigInt
+  firstSeenTimestamp_not: BigInt
+  firstSeenTimestamp_in: [BigInt]
+  firstSeenTimestamp_not_in: [BigInt]
+  firstSeenTimestamp_gt: BigInt
+  firstSeenTimestamp_lt: BigInt
+  firstSeenTimestamp_gte: BigInt
+  firstSeenTimestamp_lte: BigInt
+  iconUrl: String
+  iconUrl_not: String
+  iconUrl_in: [String]
+  iconUrl_not_in: [String]
+  iconUrl_contains: String
+  iconUrl_not_contains: String
+  iconUrl_starts_with: String
+  iconUrl_ends_with: String
+  iconUrl_not_starts_with: String
+  iconUrl_not_ends_with: String
+  bannerUrl: String
+  bannerUrl_not: String
+  bannerUrl_in: [String]
+  bannerUrl_not_in: [String]
+  bannerUrl_contains: String
+  bannerUrl_not_contains: String
+  bannerUrl_starts_with: String
+  bannerUrl_ends_with: String
+  bannerUrl_not_starts_with: String
+  bannerUrl_not_ends_with: String
+  description: String
+  description_not: String
+  description_in: [String]
+  description_not_in: [String]
+  description_contains: String
+  description_not_contains: String
+  description_starts_with: String
+  description_ends_with: String
+  description_not_starts_with: String
+  description_not_ends_with: String
+  website: String
+  website_not: String
+  website_in: [String]
+  website_not_in: [String]
+  website_contains: String
+  website_not_contains: String
+  website_starts_with: String
+  website_ends_with: String
+  website_not_starts_with: String
+  website_not_ends_with: String
+  isVerified: Boolean
+  isVerified_not: Boolean
+  isVerified_in: [Boolean]
+  isVerified_not_in: [Boolean]
+}
+
+type nfts {
+  id: String!
+  collectionAddress: String!
+  tokenId: BigInt!
+  owner: String!
+  tokenUri: String
+  mintedBlock: BigInt!
+  mintedTimestamp: BigInt!
+  lastTransferBlock: BigInt!
+  lastTransferTimestamp: BigInt!
+  transferCount: Int!
+  imageUrl: String
+  metadata: String
+}
+
+type nftsPage {
+  items: [nfts!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input nftsFilter {
+  AND: [nftsFilter]
+  OR: [nftsFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  collectionAddress: String
+  collectionAddress_not: String
+  collectionAddress_in: [String]
+  collectionAddress_not_in: [String]
+  collectionAddress_contains: String
+  collectionAddress_not_contains: String
+  collectionAddress_starts_with: String
+  collectionAddress_ends_with: String
+  collectionAddress_not_starts_with: String
+  collectionAddress_not_ends_with: String
+  tokenId: BigInt
+  tokenId_not: BigInt
+  tokenId_in: [BigInt]
+  tokenId_not_in: [BigInt]
+  tokenId_gt: BigInt
+  tokenId_lt: BigInt
+  tokenId_gte: BigInt
+  tokenId_lte: BigInt
+  owner: String
+  owner_not: String
+  owner_in: [String]
+  owner_not_in: [String]
+  owner_contains: String
+  owner_not_contains: String
+  owner_starts_with: String
+  owner_ends_with: String
+  owner_not_starts_with: String
+  owner_not_ends_with: String
+  tokenUri: String
+  tokenUri_not: String
+  tokenUri_in: [String]
+  tokenUri_not_in: [String]
+  tokenUri_contains: String
+  tokenUri_not_contains: String
+  tokenUri_starts_with: String
+  tokenUri_ends_with: String
+  tokenUri_not_starts_with: String
+  tokenUri_not_ends_with: String
+  mintedBlock: BigInt
+  mintedBlock_not: BigInt
+  mintedBlock_in: [BigInt]
+  mintedBlock_not_in: [BigInt]
+  mintedBlock_gt: BigInt
+  mintedBlock_lt: BigInt
+  mintedBlock_gte: BigInt
+  mintedBlock_lte: BigInt
+  mintedTimestamp: BigInt
+  mintedTimestamp_not: BigInt
+  mintedTimestamp_in: [BigInt]
+  mintedTimestamp_not_in: [BigInt]
+  mintedTimestamp_gt: BigInt
+  mintedTimestamp_lt: BigInt
+  mintedTimestamp_gte: BigInt
+  mintedTimestamp_lte: BigInt
+  lastTransferBlock: BigInt
+  lastTransferBlock_not: BigInt
+  lastTransferBlock_in: [BigInt]
+  lastTransferBlock_not_in: [BigInt]
+  lastTransferBlock_gt: BigInt
+  lastTransferBlock_lt: BigInt
+  lastTransferBlock_gte: BigInt
+  lastTransferBlock_lte: BigInt
+  lastTransferTimestamp: BigInt
+  lastTransferTimestamp_not: BigInt
+  lastTransferTimestamp_in: [BigInt]
+  lastTransferTimestamp_not_in: [BigInt]
+  lastTransferTimestamp_gt: BigInt
+  lastTransferTimestamp_lt: BigInt
+  lastTransferTimestamp_gte: BigInt
+  lastTransferTimestamp_lte: BigInt
+  transferCount: Int
+  transferCount_not: Int
+  transferCount_in: [Int]
+  transferCount_not_in: [Int]
+  transferCount_gt: Int
+  transferCount_lt: Int
+  transferCount_gte: Int
+  transferCount_lte: Int
+  imageUrl: String
+  imageUrl_not: String
+  imageUrl_in: [String]
+  imageUrl_not_in: [String]
+  imageUrl_contains: String
+  imageUrl_not_contains: String
+  imageUrl_starts_with: String
+  imageUrl_ends_with: String
+  imageUrl_not_starts_with: String
+  imageUrl_not_ends_with: String
+  metadata: String
+  metadata_not: String
+  metadata_in: [String]
+  metadata_not_in: [String]
+  metadata_contains: String
+  metadata_not_contains: String
+  metadata_starts_with: String
+  metadata_ends_with: String
+  metadata_not_starts_with: String
+  metadata_not_ends_with: String
+}
+
+type nftTransfers {
+  id: String!
+  transactionHash: String!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  collectionAddress: String!
+  tokenId: BigInt!
+  from: String!
+  to: String!
+  operator: String
+  value: BigInt
+  logIndex: Int!
+}
+
+type nftTransfersPage {
+  items: [nftTransfers!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input nftTransfersFilter {
+  AND: [nftTransfersFilter]
+  OR: [nftTransfersFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  transactionHash: String
+  transactionHash_not: String
+  transactionHash_in: [String]
+  transactionHash_not_in: [String]
+  transactionHash_contains: String
+  transactionHash_not_contains: String
+  transactionHash_starts_with: String
+  transactionHash_ends_with: String
+  transactionHash_not_starts_with: String
+  transactionHash_not_ends_with: String
+  blockNumber: BigInt
+  blockNumber_not: BigInt
+  blockNumber_in: [BigInt]
+  blockNumber_not_in: [BigInt]
+  blockNumber_gt: BigInt
+  blockNumber_lt: BigInt
+  blockNumber_gte: BigInt
+  blockNumber_lte: BigInt
+  timestamp: BigInt
+  timestamp_not: BigInt
+  timestamp_in: [BigInt]
+  timestamp_not_in: [BigInt]
+  timestamp_gt: BigInt
+  timestamp_lt: BigInt
+  timestamp_gte: BigInt
+  timestamp_lte: BigInt
+  collectionAddress: String
+  collectionAddress_not: String
+  collectionAddress_in: [String]
+  collectionAddress_not_in: [String]
+  collectionAddress_contains: String
+  collectionAddress_not_contains: String
+  collectionAddress_starts_with: String
+  collectionAddress_ends_with: String
+  collectionAddress_not_starts_with: String
+  collectionAddress_not_ends_with: String
+  tokenId: BigInt
+  tokenId_not: BigInt
+  tokenId_in: [BigInt]
+  tokenId_not_in: [BigInt]
+  tokenId_gt: BigInt
+  tokenId_lt: BigInt
+  tokenId_gte: BigInt
+  tokenId_lte: BigInt
+  from: String
+  from_not: String
+  from_in: [String]
+  from_not_in: [String]
+  from_contains: String
+  from_not_contains: String
+  from_starts_with: String
+  from_ends_with: String
+  from_not_starts_with: String
+  from_not_ends_with: String
+  to: String
+  to_not: String
+  to_in: [String]
+  to_not_in: [String]
+  to_contains: String
+  to_not_contains: String
+  to_starts_with: String
+  to_ends_with: String
+  to_not_starts_with: String
+  to_not_ends_with: String
+  operator: String
+  operator_not: String
+  operator_in: [String]
+  operator_not_in: [String]
+  operator_contains: String
+  operator_not_contains: String
+  operator_starts_with: String
+  operator_ends_with: String
+  operator_not_starts_with: String
+  operator_not_ends_with: String
+  value: BigInt
+  value_not: BigInt
+  value_in: [BigInt]
+  value_not_in: [BigInt]
+  value_gt: BigInt
+  value_lt: BigInt
+  value_gte: BigInt
+  value_lte: BigInt
+  logIndex: Int
+  logIndex_not: Int
+  logIndex_in: [Int]
+  logIndex_not_in: [Int]
+  logIndex_gt: Int
+  logIndex_lt: Int
+  logIndex_gte: Int
+  logIndex_lte: Int
+}
+
+type nftOwnership {
+  id: String!
+  ownerAddress: String!
+  collectionAddress: String!
+  tokenId: BigInt!
+  balance: BigInt!
+  lastUpdatedBlock: BigInt!
+  lastUpdatedTimestamp: BigInt!
+}
+
+type nftOwnershipPage {
+  items: [nftOwnership!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input nftOwnershipFilter {
+  AND: [nftOwnershipFilter]
+  OR: [nftOwnershipFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  ownerAddress: String
+  ownerAddress_not: String
+  ownerAddress_in: [String]
+  ownerAddress_not_in: [String]
+  ownerAddress_contains: String
+  ownerAddress_not_contains: String
+  ownerAddress_starts_with: String
+  ownerAddress_ends_with: String
+  ownerAddress_not_starts_with: String
+  ownerAddress_not_ends_with: String
+  collectionAddress: String
+  collectionAddress_not: String
+  collectionAddress_in: [String]
+  collectionAddress_not_in: [String]
+  collectionAddress_contains: String
+  collectionAddress_not_contains: String
+  collectionAddress_starts_with: String
+  collectionAddress_ends_with: String
+  collectionAddress_not_starts_with: String
+  collectionAddress_not_ends_with: String
+  tokenId: BigInt
+  tokenId_not: BigInt
+  tokenId_in: [BigInt]
+  tokenId_not_in: [BigInt]
+  tokenId_gt: BigInt
+  tokenId_lt: BigInt
+  tokenId_gte: BigInt
+  tokenId_lte: BigInt
+  balance: BigInt
+  balance_not: BigInt
+  balance_in: [BigInt]
+  balance_not_in: [BigInt]
+  balance_gt: BigInt
+  balance_lt: BigInt
+  balance_gte: BigInt
+  balance_lte: BigInt
+  lastUpdatedBlock: BigInt
+  lastUpdatedBlock_not: BigInt
+  lastUpdatedBlock_in: [BigInt]
+  lastUpdatedBlock_not_in: [BigInt]
+  lastUpdatedBlock_gt: BigInt
+  lastUpdatedBlock_lt: BigInt
+  lastUpdatedBlock_gte: BigInt
+  lastUpdatedBlock_lte: BigInt
+  lastUpdatedTimestamp: BigInt
+  lastUpdatedTimestamp_not: BigInt
+  lastUpdatedTimestamp_in: [BigInt]
+  lastUpdatedTimestamp_not_in: [BigInt]
+  lastUpdatedTimestamp_gt: BigInt
+  lastUpdatedTimestamp_lt: BigInt
+  lastUpdatedTimestamp_gte: BigInt
+  lastUpdatedTimestamp_lte: BigInt
+}
+
 type contracts {
   address: String!
   deployerAddress: String!
@@ -669,6 +1321,15 @@ type contracts {
   blockNumber: BigInt!
   timestamp: BigInt!
   bytecodeSize: Int
+  isVerified: Boolean
+  name: String
+  contractType: String
+  isProxy: Boolean
+  implementationAddress: String
+  transactionCount: Int
+  uniqueCallerCount: Int
+  lastActivityBlock: BigInt
+  lastActivityTimestamp: BigInt
 }
 
 type contractsPage {
@@ -734,6 +1395,247 @@ input contractsFilter {
   bytecodeSize_lt: Int
   bytecodeSize_gte: Int
   bytecodeSize_lte: Int
+  isVerified: Boolean
+  isVerified_not: Boolean
+  isVerified_in: [Boolean]
+  isVerified_not_in: [Boolean]
+  name: String
+  name_not: String
+  name_in: [String]
+  name_not_in: [String]
+  name_contains: String
+  name_not_contains: String
+  name_starts_with: String
+  name_ends_with: String
+  name_not_starts_with: String
+  name_not_ends_with: String
+  contractType: String
+  contractType_not: String
+  contractType_in: [String]
+  contractType_not_in: [String]
+  contractType_contains: String
+  contractType_not_contains: String
+  contractType_starts_with: String
+  contractType_ends_with: String
+  contractType_not_starts_with: String
+  contractType_not_ends_with: String
+  isProxy: Boolean
+  isProxy_not: Boolean
+  isProxy_in: [Boolean]
+  isProxy_not_in: [Boolean]
+  implementationAddress: String
+  implementationAddress_not: String
+  implementationAddress_in: [String]
+  implementationAddress_not_in: [String]
+  implementationAddress_contains: String
+  implementationAddress_not_contains: String
+  implementationAddress_starts_with: String
+  implementationAddress_ends_with: String
+  implementationAddress_not_starts_with: String
+  implementationAddress_not_ends_with: String
+  transactionCount: Int
+  transactionCount_not: Int
+  transactionCount_in: [Int]
+  transactionCount_not_in: [Int]
+  transactionCount_gt: Int
+  transactionCount_lt: Int
+  transactionCount_gte: Int
+  transactionCount_lte: Int
+  uniqueCallerCount: Int
+  uniqueCallerCount_not: Int
+  uniqueCallerCount_in: [Int]
+  uniqueCallerCount_not_in: [Int]
+  uniqueCallerCount_gt: Int
+  uniqueCallerCount_lt: Int
+  uniqueCallerCount_gte: Int
+  uniqueCallerCount_lte: Int
+  lastActivityBlock: BigInt
+  lastActivityBlock_not: BigInt
+  lastActivityBlock_in: [BigInt]
+  lastActivityBlock_not_in: [BigInt]
+  lastActivityBlock_gt: BigInt
+  lastActivityBlock_lt: BigInt
+  lastActivityBlock_gte: BigInt
+  lastActivityBlock_lte: BigInt
+  lastActivityTimestamp: BigInt
+  lastActivityTimestamp_not: BigInt
+  lastActivityTimestamp_in: [BigInt]
+  lastActivityTimestamp_not_in: [BigInt]
+  lastActivityTimestamp_gt: BigInt
+  lastActivityTimestamp_lt: BigInt
+  lastActivityTimestamp_gte: BigInt
+  lastActivityTimestamp_lte: BigInt
+}
+
+type deployers {
+  address: String!
+  contractCount: Int!
+  totalTransactionsAcrossContracts: BigInt!
+  totalUniqueUsersAcrossContracts: Int!
+  firstDeployBlock: BigInt!
+  firstDeployTimestamp: BigInt!
+  lastDeployBlock: BigInt!
+  lastDeployTimestamp: BigInt!
+}
+
+type deployersPage {
+  items: [deployers!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input deployersFilter {
+  AND: [deployersFilter]
+  OR: [deployersFilter]
+  address: String
+  address_not: String
+  address_in: [String]
+  address_not_in: [String]
+  address_contains: String
+  address_not_contains: String
+  address_starts_with: String
+  address_ends_with: String
+  address_not_starts_with: String
+  address_not_ends_with: String
+  contractCount: Int
+  contractCount_not: Int
+  contractCount_in: [Int]
+  contractCount_not_in: [Int]
+  contractCount_gt: Int
+  contractCount_lt: Int
+  contractCount_gte: Int
+  contractCount_lte: Int
+  totalTransactionsAcrossContracts: BigInt
+  totalTransactionsAcrossContracts_not: BigInt
+  totalTransactionsAcrossContracts_in: [BigInt]
+  totalTransactionsAcrossContracts_not_in: [BigInt]
+  totalTransactionsAcrossContracts_gt: BigInt
+  totalTransactionsAcrossContracts_lt: BigInt
+  totalTransactionsAcrossContracts_gte: BigInt
+  totalTransactionsAcrossContracts_lte: BigInt
+  totalUniqueUsersAcrossContracts: Int
+  totalUniqueUsersAcrossContracts_not: Int
+  totalUniqueUsersAcrossContracts_in: [Int]
+  totalUniqueUsersAcrossContracts_not_in: [Int]
+  totalUniqueUsersAcrossContracts_gt: Int
+  totalUniqueUsersAcrossContracts_lt: Int
+  totalUniqueUsersAcrossContracts_gte: Int
+  totalUniqueUsersAcrossContracts_lte: Int
+  firstDeployBlock: BigInt
+  firstDeployBlock_not: BigInt
+  firstDeployBlock_in: [BigInt]
+  firstDeployBlock_not_in: [BigInt]
+  firstDeployBlock_gt: BigInt
+  firstDeployBlock_lt: BigInt
+  firstDeployBlock_gte: BigInt
+  firstDeployBlock_lte: BigInt
+  firstDeployTimestamp: BigInt
+  firstDeployTimestamp_not: BigInt
+  firstDeployTimestamp_in: [BigInt]
+  firstDeployTimestamp_not_in: [BigInt]
+  firstDeployTimestamp_gt: BigInt
+  firstDeployTimestamp_lt: BigInt
+  firstDeployTimestamp_gte: BigInt
+  firstDeployTimestamp_lte: BigInt
+  lastDeployBlock: BigInt
+  lastDeployBlock_not: BigInt
+  lastDeployBlock_in: [BigInt]
+  lastDeployBlock_not_in: [BigInt]
+  lastDeployBlock_gt: BigInt
+  lastDeployBlock_lt: BigInt
+  lastDeployBlock_gte: BigInt
+  lastDeployBlock_lte: BigInt
+  lastDeployTimestamp: BigInt
+  lastDeployTimestamp_not: BigInt
+  lastDeployTimestamp_in: [BigInt]
+  lastDeployTimestamp_not_in: [BigInt]
+  lastDeployTimestamp_gt: BigInt
+  lastDeployTimestamp_lt: BigInt
+  lastDeployTimestamp_gte: BigInt
+  lastDeployTimestamp_lte: BigInt
+}
+
+type deployerDailyStats {
+  id: String!
+  deployerAddress: String!
+  date: String!
+  totalTransactions: Int!
+  totalUniqueCallers: Int!
+  activeContractsCount: Int!
+  newContractsDeployed: Int!
+}
+
+type deployerDailyStatsPage {
+  items: [deployerDailyStats!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input deployerDailyStatsFilter {
+  AND: [deployerDailyStatsFilter]
+  OR: [deployerDailyStatsFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  deployerAddress: String
+  deployerAddress_not: String
+  deployerAddress_in: [String]
+  deployerAddress_not_in: [String]
+  deployerAddress_contains: String
+  deployerAddress_not_contains: String
+  deployerAddress_starts_with: String
+  deployerAddress_ends_with: String
+  deployerAddress_not_starts_with: String
+  deployerAddress_not_ends_with: String
+  date: String
+  date_not: String
+  date_in: [String]
+  date_not_in: [String]
+  date_contains: String
+  date_not_contains: String
+  date_starts_with: String
+  date_ends_with: String
+  date_not_starts_with: String
+  date_not_ends_with: String
+  totalTransactions: Int
+  totalTransactions_not: Int
+  totalTransactions_in: [Int]
+  totalTransactions_not_in: [Int]
+  totalTransactions_gt: Int
+  totalTransactions_lt: Int
+  totalTransactions_gte: Int
+  totalTransactions_lte: Int
+  totalUniqueCallers: Int
+  totalUniqueCallers_not: Int
+  totalUniqueCallers_in: [Int]
+  totalUniqueCallers_not_in: [Int]
+  totalUniqueCallers_gt: Int
+  totalUniqueCallers_lt: Int
+  totalUniqueCallers_gte: Int
+  totalUniqueCallers_lte: Int
+  activeContractsCount: Int
+  activeContractsCount_not: Int
+  activeContractsCount_in: [Int]
+  activeContractsCount_not_in: [Int]
+  activeContractsCount_gt: Int
+  activeContractsCount_lt: Int
+  activeContractsCount_gte: Int
+  activeContractsCount_lte: Int
+  newContractsDeployed: Int
+  newContractsDeployed_not: Int
+  newContractsDeployed_in: [Int]
+  newContractsDeployed_not_in: [Int]
+  newContractsDeployed_gt: Int
+  newContractsDeployed_lt: Int
+  newContractsDeployed_gte: Int
+  newContractsDeployed_lte: Int
 }
 
 type dailyStats {
@@ -747,6 +1649,9 @@ type dailyStats {
   uniqueToAddresses: Int!
   tokenTransferCount: Int!
   totalValueTransferred: BigInt!
+  nftTransferCount: Int!
+  newAccountsCount: Int!
+  activeContractsCount: Int!
 }
 
 type dailyStatsPage {
@@ -840,6 +1745,30 @@ input dailyStatsFilter {
   totalValueTransferred_lt: BigInt
   totalValueTransferred_gte: BigInt
   totalValueTransferred_lte: BigInt
+  nftTransferCount: Int
+  nftTransferCount_not: Int
+  nftTransferCount_in: [Int]
+  nftTransferCount_not_in: [Int]
+  nftTransferCount_gt: Int
+  nftTransferCount_lt: Int
+  nftTransferCount_gte: Int
+  nftTransferCount_lte: Int
+  newAccountsCount: Int
+  newAccountsCount_not: Int
+  newAccountsCount_in: [Int]
+  newAccountsCount_not_in: [Int]
+  newAccountsCount_gt: Int
+  newAccountsCount_lt: Int
+  newAccountsCount_gte: Int
+  newAccountsCount_lte: Int
+  activeContractsCount: Int
+  activeContractsCount_not: Int
+  activeContractsCount_in: [Int]
+  activeContractsCount_not_in: [Int]
+  activeContractsCount_gt: Int
+  activeContractsCount_lt: Int
+  activeContractsCount_gte: Int
+  activeContractsCount_lte: Int
 }
 
 type hourlyStats {
@@ -919,4 +1848,1152 @@ input hourlyStatsFilter {
   tokenTransferCount_lt: Int
   tokenTransferCount_gte: Int
   tokenTransferCount_lte: Int
+}
+
+type addressLabels {
+  address: String!
+  label: String!
+  category: String
+  website: String
+  logoUrl: String
+}
+
+type addressLabelsPage {
+  items: [addressLabels!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input addressLabelsFilter {
+  AND: [addressLabelsFilter]
+  OR: [addressLabelsFilter]
+  address: String
+  address_not: String
+  address_in: [String]
+  address_not_in: [String]
+  address_contains: String
+  address_not_contains: String
+  address_starts_with: String
+  address_ends_with: String
+  address_not_starts_with: String
+  address_not_ends_with: String
+  label: String
+  label_not: String
+  label_in: [String]
+  label_not_in: [String]
+  label_contains: String
+  label_not_contains: String
+  label_starts_with: String
+  label_ends_with: String
+  label_not_starts_with: String
+  label_not_ends_with: String
+  category: String
+  category_not: String
+  category_in: [String]
+  category_not_in: [String]
+  category_contains: String
+  category_not_contains: String
+  category_starts_with: String
+  category_ends_with: String
+  category_not_starts_with: String
+  category_not_ends_with: String
+  website: String
+  website_not: String
+  website_in: [String]
+  website_not_in: [String]
+  website_contains: String
+  website_not_contains: String
+  website_starts_with: String
+  website_ends_with: String
+  website_not_starts_with: String
+  website_not_ends_with: String
+  logoUrl: String
+  logoUrl_not: String
+  logoUrl_in: [String]
+  logoUrl_not_in: [String]
+  logoUrl_contains: String
+  logoUrl_not_contains: String
+  logoUrl_starts_with: String
+  logoUrl_ends_with: String
+  logoUrl_not_starts_with: String
+  logoUrl_not_ends_with: String
+}
+
+type eventLogs {
+  id: String!
+  transactionHash: String!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  address: String!
+  topic0: String
+  topic1: String
+  topic2: String
+  topic3: String
+  data: String
+  logIndex: Int!
+  eventName: String
+}
+
+type eventLogsPage {
+  items: [eventLogs!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input eventLogsFilter {
+  AND: [eventLogsFilter]
+  OR: [eventLogsFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  transactionHash: String
+  transactionHash_not: String
+  transactionHash_in: [String]
+  transactionHash_not_in: [String]
+  transactionHash_contains: String
+  transactionHash_not_contains: String
+  transactionHash_starts_with: String
+  transactionHash_ends_with: String
+  transactionHash_not_starts_with: String
+  transactionHash_not_ends_with: String
+  blockNumber: BigInt
+  blockNumber_not: BigInt
+  blockNumber_in: [BigInt]
+  blockNumber_not_in: [BigInt]
+  blockNumber_gt: BigInt
+  blockNumber_lt: BigInt
+  blockNumber_gte: BigInt
+  blockNumber_lte: BigInt
+  timestamp: BigInt
+  timestamp_not: BigInt
+  timestamp_in: [BigInt]
+  timestamp_not_in: [BigInt]
+  timestamp_gt: BigInt
+  timestamp_lt: BigInt
+  timestamp_gte: BigInt
+  timestamp_lte: BigInt
+  address: String
+  address_not: String
+  address_in: [String]
+  address_not_in: [String]
+  address_contains: String
+  address_not_contains: String
+  address_starts_with: String
+  address_ends_with: String
+  address_not_starts_with: String
+  address_not_ends_with: String
+  topic0: String
+  topic0_not: String
+  topic0_in: [String]
+  topic0_not_in: [String]
+  topic0_contains: String
+  topic0_not_contains: String
+  topic0_starts_with: String
+  topic0_ends_with: String
+  topic0_not_starts_with: String
+  topic0_not_ends_with: String
+  topic1: String
+  topic1_not: String
+  topic1_in: [String]
+  topic1_not_in: [String]
+  topic1_contains: String
+  topic1_not_contains: String
+  topic1_starts_with: String
+  topic1_ends_with: String
+  topic1_not_starts_with: String
+  topic1_not_ends_with: String
+  topic2: String
+  topic2_not: String
+  topic2_in: [String]
+  topic2_not_in: [String]
+  topic2_contains: String
+  topic2_not_contains: String
+  topic2_starts_with: String
+  topic2_ends_with: String
+  topic2_not_starts_with: String
+  topic2_not_ends_with: String
+  topic3: String
+  topic3_not: String
+  topic3_in: [String]
+  topic3_not_in: [String]
+  topic3_contains: String
+  topic3_not_contains: String
+  topic3_starts_with: String
+  topic3_ends_with: String
+  topic3_not_starts_with: String
+  topic3_not_ends_with: String
+  data: String
+  data_not: String
+  data_in: [String]
+  data_not_in: [String]
+  data_contains: String
+  data_not_contains: String
+  data_starts_with: String
+  data_ends_with: String
+  data_not_starts_with: String
+  data_not_ends_with: String
+  logIndex: Int
+  logIndex_not: Int
+  logIndex_in: [Int]
+  logIndex_not_in: [Int]
+  logIndex_gt: Int
+  logIndex_lt: Int
+  logIndex_gte: Int
+  logIndex_lte: Int
+  eventName: String
+  eventName_not: String
+  eventName_in: [String]
+  eventName_not_in: [String]
+  eventName_contains: String
+  eventName_not_contains: String
+  eventName_starts_with: String
+  eventName_ends_with: String
+  eventName_not_starts_with: String
+  eventName_not_ends_with: String
+}
+
+type tokenDailyStats {
+  id: String!
+  tokenAddress: String!
+  date: String!
+  transferCount: Int!
+  volume: BigInt!
+  uniqueSenders: Int!
+  uniqueReceivers: Int!
+  mintAmount: BigInt!
+  burnAmount: BigInt!
+}
+
+type tokenDailyStatsPage {
+  items: [tokenDailyStats!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input tokenDailyStatsFilter {
+  AND: [tokenDailyStatsFilter]
+  OR: [tokenDailyStatsFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  tokenAddress: String
+  tokenAddress_not: String
+  tokenAddress_in: [String]
+  tokenAddress_not_in: [String]
+  tokenAddress_contains: String
+  tokenAddress_not_contains: String
+  tokenAddress_starts_with: String
+  tokenAddress_ends_with: String
+  tokenAddress_not_starts_with: String
+  tokenAddress_not_ends_with: String
+  date: String
+  date_not: String
+  date_in: [String]
+  date_not_in: [String]
+  date_contains: String
+  date_not_contains: String
+  date_starts_with: String
+  date_ends_with: String
+  date_not_starts_with: String
+  date_not_ends_with: String
+  transferCount: Int
+  transferCount_not: Int
+  transferCount_in: [Int]
+  transferCount_not_in: [Int]
+  transferCount_gt: Int
+  transferCount_lt: Int
+  transferCount_gte: Int
+  transferCount_lte: Int
+  volume: BigInt
+  volume_not: BigInt
+  volume_in: [BigInt]
+  volume_not_in: [BigInt]
+  volume_gt: BigInt
+  volume_lt: BigInt
+  volume_gte: BigInt
+  volume_lte: BigInt
+  uniqueSenders: Int
+  uniqueSenders_not: Int
+  uniqueSenders_in: [Int]
+  uniqueSenders_not_in: [Int]
+  uniqueSenders_gt: Int
+  uniqueSenders_lt: Int
+  uniqueSenders_gte: Int
+  uniqueSenders_lte: Int
+  uniqueReceivers: Int
+  uniqueReceivers_not: Int
+  uniqueReceivers_in: [Int]
+  uniqueReceivers_not_in: [Int]
+  uniqueReceivers_gt: Int
+  uniqueReceivers_lt: Int
+  uniqueReceivers_gte: Int
+  uniqueReceivers_lte: Int
+  mintAmount: BigInt
+  mintAmount_not: BigInt
+  mintAmount_in: [BigInt]
+  mintAmount_not_in: [BigInt]
+  mintAmount_gt: BigInt
+  mintAmount_lt: BigInt
+  mintAmount_gte: BigInt
+  mintAmount_lte: BigInt
+  burnAmount: BigInt
+  burnAmount_not: BigInt
+  burnAmount_in: [BigInt]
+  burnAmount_not_in: [BigInt]
+  burnAmount_gt: BigInt
+  burnAmount_lt: BigInt
+  burnAmount_gte: BigInt
+  burnAmount_lte: BigInt
+}
+
+type contractDailyStats {
+  id: String!
+  contractAddress: String!
+  date: String!
+  transactionCount: Int!
+  uniqueCallers: Int!
+  totalGasUsed: BigInt!
+}
+
+type contractDailyStatsPage {
+  items: [contractDailyStats!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input contractDailyStatsFilter {
+  AND: [contractDailyStatsFilter]
+  OR: [contractDailyStatsFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  contractAddress: String
+  contractAddress_not: String
+  contractAddress_in: [String]
+  contractAddress_not_in: [String]
+  contractAddress_contains: String
+  contractAddress_not_contains: String
+  contractAddress_starts_with: String
+  contractAddress_ends_with: String
+  contractAddress_not_starts_with: String
+  contractAddress_not_ends_with: String
+  date: String
+  date_not: String
+  date_in: [String]
+  date_not_in: [String]
+  date_contains: String
+  date_not_contains: String
+  date_starts_with: String
+  date_ends_with: String
+  date_not_starts_with: String
+  date_not_ends_with: String
+  transactionCount: Int
+  transactionCount_not: Int
+  transactionCount_in: [Int]
+  transactionCount_not_in: [Int]
+  transactionCount_gt: Int
+  transactionCount_lt: Int
+  transactionCount_gte: Int
+  transactionCount_lte: Int
+  uniqueCallers: Int
+  uniqueCallers_not: Int
+  uniqueCallers_in: [Int]
+  uniqueCallers_not_in: [Int]
+  uniqueCallers_gt: Int
+  uniqueCallers_lt: Int
+  uniqueCallers_gte: Int
+  uniqueCallers_lte: Int
+  totalGasUsed: BigInt
+  totalGasUsed_not: BigInt
+  totalGasUsed_in: [BigInt]
+  totalGasUsed_not_in: [BigInt]
+  totalGasUsed_gt: BigInt
+  totalGasUsed_lt: BigInt
+  totalGasUsed_gte: BigInt
+  totalGasUsed_lte: BigInt
+}
+
+type contractCallers {
+  id: String!
+  contractAddress: String!
+  callerAddress: String!
+  firstCallBlock: BigInt!
+  firstCallTimestamp: BigInt!
+  lastCallBlock: BigInt!
+  lastCallTimestamp: BigInt!
+  callCount: Int!
+}
+
+type contractCallersPage {
+  items: [contractCallers!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input contractCallersFilter {
+  AND: [contractCallersFilter]
+  OR: [contractCallersFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  contractAddress: String
+  contractAddress_not: String
+  contractAddress_in: [String]
+  contractAddress_not_in: [String]
+  contractAddress_contains: String
+  contractAddress_not_contains: String
+  contractAddress_starts_with: String
+  contractAddress_ends_with: String
+  contractAddress_not_starts_with: String
+  contractAddress_not_ends_with: String
+  callerAddress: String
+  callerAddress_not: String
+  callerAddress_in: [String]
+  callerAddress_not_in: [String]
+  callerAddress_contains: String
+  callerAddress_not_contains: String
+  callerAddress_starts_with: String
+  callerAddress_ends_with: String
+  callerAddress_not_starts_with: String
+  callerAddress_not_ends_with: String
+  firstCallBlock: BigInt
+  firstCallBlock_not: BigInt
+  firstCallBlock_in: [BigInt]
+  firstCallBlock_not_in: [BigInt]
+  firstCallBlock_gt: BigInt
+  firstCallBlock_lt: BigInt
+  firstCallBlock_gte: BigInt
+  firstCallBlock_lte: BigInt
+  firstCallTimestamp: BigInt
+  firstCallTimestamp_not: BigInt
+  firstCallTimestamp_in: [BigInt]
+  firstCallTimestamp_not_in: [BigInt]
+  firstCallTimestamp_gt: BigInt
+  firstCallTimestamp_lt: BigInt
+  firstCallTimestamp_gte: BigInt
+  firstCallTimestamp_lte: BigInt
+  lastCallBlock: BigInt
+  lastCallBlock_not: BigInt
+  lastCallBlock_in: [BigInt]
+  lastCallBlock_not_in: [BigInt]
+  lastCallBlock_gt: BigInt
+  lastCallBlock_lt: BigInt
+  lastCallBlock_gte: BigInt
+  lastCallBlock_lte: BigInt
+  lastCallTimestamp: BigInt
+  lastCallTimestamp_not: BigInt
+  lastCallTimestamp_in: [BigInt]
+  lastCallTimestamp_not_in: [BigInt]
+  lastCallTimestamp_gt: BigInt
+  lastCallTimestamp_lt: BigInt
+  lastCallTimestamp_gte: BigInt
+  lastCallTimestamp_lte: BigInt
+  callCount: Int
+  callCount_not: Int
+  callCount_in: [Int]
+  callCount_not_in: [Int]
+  callCount_gt: Int
+  callCount_lt: Int
+  callCount_gte: Int
+  callCount_lte: Int
+}
+
+type contractDailyCallers {
+  id: String!
+  contractAddress: String!
+  callerAddress: String!
+  date: String!
+  callCount: Int!
+}
+
+type contractDailyCallersPage {
+  items: [contractDailyCallers!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input contractDailyCallersFilter {
+  AND: [contractDailyCallersFilter]
+  OR: [contractDailyCallersFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  contractAddress: String
+  contractAddress_not: String
+  contractAddress_in: [String]
+  contractAddress_not_in: [String]
+  contractAddress_contains: String
+  contractAddress_not_contains: String
+  contractAddress_starts_with: String
+  contractAddress_ends_with: String
+  contractAddress_not_starts_with: String
+  contractAddress_not_ends_with: String
+  callerAddress: String
+  callerAddress_not: String
+  callerAddress_in: [String]
+  callerAddress_not_in: [String]
+  callerAddress_contains: String
+  callerAddress_not_contains: String
+  callerAddress_starts_with: String
+  callerAddress_ends_with: String
+  callerAddress_not_starts_with: String
+  callerAddress_not_ends_with: String
+  date: String
+  date_not: String
+  date_in: [String]
+  date_not_in: [String]
+  date_contains: String
+  date_not_contains: String
+  date_starts_with: String
+  date_ends_with: String
+  date_not_starts_with: String
+  date_not_ends_with: String
+  callCount: Int
+  callCount_not: Int
+  callCount_in: [Int]
+  callCount_not_in: [Int]
+  callCount_gt: Int
+  callCount_lt: Int
+  callCount_gte: Int
+  callCount_lte: Int
+}
+
+type tokenApprovals {
+  id: String!
+  tokenAddress: String!
+  ownerAddress: String!
+  spenderAddress: String!
+  allowance: BigInt!
+  isUnlimited: Boolean!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  transactionHash: String!
+}
+
+type tokenApprovalsPage {
+  items: [tokenApprovals!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input tokenApprovalsFilter {
+  AND: [tokenApprovalsFilter]
+  OR: [tokenApprovalsFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  tokenAddress: String
+  tokenAddress_not: String
+  tokenAddress_in: [String]
+  tokenAddress_not_in: [String]
+  tokenAddress_contains: String
+  tokenAddress_not_contains: String
+  tokenAddress_starts_with: String
+  tokenAddress_ends_with: String
+  tokenAddress_not_starts_with: String
+  tokenAddress_not_ends_with: String
+  ownerAddress: String
+  ownerAddress_not: String
+  ownerAddress_in: [String]
+  ownerAddress_not_in: [String]
+  ownerAddress_contains: String
+  ownerAddress_not_contains: String
+  ownerAddress_starts_with: String
+  ownerAddress_ends_with: String
+  ownerAddress_not_starts_with: String
+  ownerAddress_not_ends_with: String
+  spenderAddress: String
+  spenderAddress_not: String
+  spenderAddress_in: [String]
+  spenderAddress_not_in: [String]
+  spenderAddress_contains: String
+  spenderAddress_not_contains: String
+  spenderAddress_starts_with: String
+  spenderAddress_ends_with: String
+  spenderAddress_not_starts_with: String
+  spenderAddress_not_ends_with: String
+  allowance: BigInt
+  allowance_not: BigInt
+  allowance_in: [BigInt]
+  allowance_not_in: [BigInt]
+  allowance_gt: BigInt
+  allowance_lt: BigInt
+  allowance_gte: BigInt
+  allowance_lte: BigInt
+  isUnlimited: Boolean
+  isUnlimited_not: Boolean
+  isUnlimited_in: [Boolean]
+  isUnlimited_not_in: [Boolean]
+  blockNumber: BigInt
+  blockNumber_not: BigInt
+  blockNumber_in: [BigInt]
+  blockNumber_not_in: [BigInt]
+  blockNumber_gt: BigInt
+  blockNumber_lt: BigInt
+  blockNumber_gte: BigInt
+  blockNumber_lte: BigInt
+  timestamp: BigInt
+  timestamp_not: BigInt
+  timestamp_in: [BigInt]
+  timestamp_not_in: [BigInt]
+  timestamp_gt: BigInt
+  timestamp_lt: BigInt
+  timestamp_gte: BigInt
+  timestamp_lte: BigInt
+  transactionHash: String
+  transactionHash_not: String
+  transactionHash_in: [String]
+  transactionHash_not_in: [String]
+  transactionHash_contains: String
+  transactionHash_not_contains: String
+  transactionHash_starts_with: String
+  transactionHash_ends_with: String
+  transactionHash_not_starts_with: String
+  transactionHash_not_ends_with: String
+}
+
+type hourlyGasStats {
+  hour: String!
+  minGasPrice: BigInt!
+  maxGasPrice: BigInt!
+  avgGasPrice: BigInt!
+  medianGasPrice: BigInt
+  transactionCount: Int!
+  totalGasUsed: BigInt!
+}
+
+type hourlyGasStatsPage {
+  items: [hourlyGasStats!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input hourlyGasStatsFilter {
+  AND: [hourlyGasStatsFilter]
+  OR: [hourlyGasStatsFilter]
+  hour: String
+  hour_not: String
+  hour_in: [String]
+  hour_not_in: [String]
+  hour_contains: String
+  hour_not_contains: String
+  hour_starts_with: String
+  hour_ends_with: String
+  hour_not_starts_with: String
+  hour_not_ends_with: String
+  minGasPrice: BigInt
+  minGasPrice_not: BigInt
+  minGasPrice_in: [BigInt]
+  minGasPrice_not_in: [BigInt]
+  minGasPrice_gt: BigInt
+  minGasPrice_lt: BigInt
+  minGasPrice_gte: BigInt
+  minGasPrice_lte: BigInt
+  maxGasPrice: BigInt
+  maxGasPrice_not: BigInt
+  maxGasPrice_in: [BigInt]
+  maxGasPrice_not_in: [BigInt]
+  maxGasPrice_gt: BigInt
+  maxGasPrice_lt: BigInt
+  maxGasPrice_gte: BigInt
+  maxGasPrice_lte: BigInt
+  avgGasPrice: BigInt
+  avgGasPrice_not: BigInt
+  avgGasPrice_in: [BigInt]
+  avgGasPrice_not_in: [BigInt]
+  avgGasPrice_gt: BigInt
+  avgGasPrice_lt: BigInt
+  avgGasPrice_gte: BigInt
+  avgGasPrice_lte: BigInt
+  medianGasPrice: BigInt
+  medianGasPrice_not: BigInt
+  medianGasPrice_in: [BigInt]
+  medianGasPrice_not_in: [BigInt]
+  medianGasPrice_gt: BigInt
+  medianGasPrice_lt: BigInt
+  medianGasPrice_gte: BigInt
+  medianGasPrice_lte: BigInt
+  transactionCount: Int
+  transactionCount_not: Int
+  transactionCount_in: [Int]
+  transactionCount_not_in: [Int]
+  transactionCount_gt: Int
+  transactionCount_lt: Int
+  transactionCount_gte: Int
+  transactionCount_lte: Int
+  totalGasUsed: BigInt
+  totalGasUsed_not: BigInt
+  totalGasUsed_in: [BigInt]
+  totalGasUsed_not_in: [BigInt]
+  totalGasUsed_gt: BigInt
+  totalGasUsed_lt: BigInt
+  totalGasUsed_gte: BigInt
+  totalGasUsed_lte: BigInt
+}
+
+type nftCreators {
+  address: String!
+  collectionCount: Int!
+  totalNftsMinted: Int!
+  totalUniqueOwners: Int!
+  totalTransfers: Int!
+  firstCreateBlock: BigInt!
+  firstCreateTimestamp: BigInt!
+  lastCreateBlock: BigInt!
+  lastCreateTimestamp: BigInt!
+}
+
+type nftCreatorsPage {
+  items: [nftCreators!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input nftCreatorsFilter {
+  AND: [nftCreatorsFilter]
+  OR: [nftCreatorsFilter]
+  address: String
+  address_not: String
+  address_in: [String]
+  address_not_in: [String]
+  address_contains: String
+  address_not_contains: String
+  address_starts_with: String
+  address_ends_with: String
+  address_not_starts_with: String
+  address_not_ends_with: String
+  collectionCount: Int
+  collectionCount_not: Int
+  collectionCount_in: [Int]
+  collectionCount_not_in: [Int]
+  collectionCount_gt: Int
+  collectionCount_lt: Int
+  collectionCount_gte: Int
+  collectionCount_lte: Int
+  totalNftsMinted: Int
+  totalNftsMinted_not: Int
+  totalNftsMinted_in: [Int]
+  totalNftsMinted_not_in: [Int]
+  totalNftsMinted_gt: Int
+  totalNftsMinted_lt: Int
+  totalNftsMinted_gte: Int
+  totalNftsMinted_lte: Int
+  totalUniqueOwners: Int
+  totalUniqueOwners_not: Int
+  totalUniqueOwners_in: [Int]
+  totalUniqueOwners_not_in: [Int]
+  totalUniqueOwners_gt: Int
+  totalUniqueOwners_lt: Int
+  totalUniqueOwners_gte: Int
+  totalUniqueOwners_lte: Int
+  totalTransfers: Int
+  totalTransfers_not: Int
+  totalTransfers_in: [Int]
+  totalTransfers_not_in: [Int]
+  totalTransfers_gt: Int
+  totalTransfers_lt: Int
+  totalTransfers_gte: Int
+  totalTransfers_lte: Int
+  firstCreateBlock: BigInt
+  firstCreateBlock_not: BigInt
+  firstCreateBlock_in: [BigInt]
+  firstCreateBlock_not_in: [BigInt]
+  firstCreateBlock_gt: BigInt
+  firstCreateBlock_lt: BigInt
+  firstCreateBlock_gte: BigInt
+  firstCreateBlock_lte: BigInt
+  firstCreateTimestamp: BigInt
+  firstCreateTimestamp_not: BigInt
+  firstCreateTimestamp_in: [BigInt]
+  firstCreateTimestamp_not_in: [BigInt]
+  firstCreateTimestamp_gt: BigInt
+  firstCreateTimestamp_lt: BigInt
+  firstCreateTimestamp_gte: BigInt
+  firstCreateTimestamp_lte: BigInt
+  lastCreateBlock: BigInt
+  lastCreateBlock_not: BigInt
+  lastCreateBlock_in: [BigInt]
+  lastCreateBlock_not_in: [BigInt]
+  lastCreateBlock_gt: BigInt
+  lastCreateBlock_lt: BigInt
+  lastCreateBlock_gte: BigInt
+  lastCreateBlock_lte: BigInt
+  lastCreateTimestamp: BigInt
+  lastCreateTimestamp_not: BigInt
+  lastCreateTimestamp_in: [BigInt]
+  lastCreateTimestamp_not_in: [BigInt]
+  lastCreateTimestamp_gt: BigInt
+  lastCreateTimestamp_lt: BigInt
+  lastCreateTimestamp_gte: BigInt
+  lastCreateTimestamp_lte: BigInt
+}
+
+type nftCreatorDailyStats {
+  id: String!
+  creatorAddress: String!
+  date: String!
+  mintCount: Int!
+  transferCount: Int!
+  uniqueBuyers: Int!
+  newCollectionsCreated: Int!
+}
+
+type nftCreatorDailyStatsPage {
+  items: [nftCreatorDailyStats!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input nftCreatorDailyStatsFilter {
+  AND: [nftCreatorDailyStatsFilter]
+  OR: [nftCreatorDailyStatsFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  creatorAddress: String
+  creatorAddress_not: String
+  creatorAddress_in: [String]
+  creatorAddress_not_in: [String]
+  creatorAddress_contains: String
+  creatorAddress_not_contains: String
+  creatorAddress_starts_with: String
+  creatorAddress_ends_with: String
+  creatorAddress_not_starts_with: String
+  creatorAddress_not_ends_with: String
+  date: String
+  date_not: String
+  date_in: [String]
+  date_not_in: [String]
+  date_contains: String
+  date_not_contains: String
+  date_starts_with: String
+  date_ends_with: String
+  date_not_starts_with: String
+  date_not_ends_with: String
+  mintCount: Int
+  mintCount_not: Int
+  mintCount_in: [Int]
+  mintCount_not_in: [Int]
+  mintCount_gt: Int
+  mintCount_lt: Int
+  mintCount_gte: Int
+  mintCount_lte: Int
+  transferCount: Int
+  transferCount_not: Int
+  transferCount_in: [Int]
+  transferCount_not_in: [Int]
+  transferCount_gt: Int
+  transferCount_lt: Int
+  transferCount_gte: Int
+  transferCount_lte: Int
+  uniqueBuyers: Int
+  uniqueBuyers_not: Int
+  uniqueBuyers_in: [Int]
+  uniqueBuyers_not_in: [Int]
+  uniqueBuyers_gt: Int
+  uniqueBuyers_lt: Int
+  uniqueBuyers_gte: Int
+  uniqueBuyers_lte: Int
+  newCollectionsCreated: Int
+  newCollectionsCreated_not: Int
+  newCollectionsCreated_in: [Int]
+  newCollectionsCreated_not_in: [Int]
+  newCollectionsCreated_gt: Int
+  newCollectionsCreated_lt: Int
+  newCollectionsCreated_gte: Int
+  newCollectionsCreated_lte: Int
+}
+
+type nftCollectors {
+  address: String!
+  totalNftsOwned: Int!
+  collectionsCount: Int!
+  totalNftsBought: Int!
+  totalNftsSold: Int!
+  totalNftsMinted: Int!
+  firstAcquisitionBlock: BigInt
+  lastAcquisitionBlock: BigInt
+}
+
+type nftCollectorsPage {
+  items: [nftCollectors!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input nftCollectorsFilter {
+  AND: [nftCollectorsFilter]
+  OR: [nftCollectorsFilter]
+  address: String
+  address_not: String
+  address_in: [String]
+  address_not_in: [String]
+  address_contains: String
+  address_not_contains: String
+  address_starts_with: String
+  address_ends_with: String
+  address_not_starts_with: String
+  address_not_ends_with: String
+  totalNftsOwned: Int
+  totalNftsOwned_not: Int
+  totalNftsOwned_in: [Int]
+  totalNftsOwned_not_in: [Int]
+  totalNftsOwned_gt: Int
+  totalNftsOwned_lt: Int
+  totalNftsOwned_gte: Int
+  totalNftsOwned_lte: Int
+  collectionsCount: Int
+  collectionsCount_not: Int
+  collectionsCount_in: [Int]
+  collectionsCount_not_in: [Int]
+  collectionsCount_gt: Int
+  collectionsCount_lt: Int
+  collectionsCount_gte: Int
+  collectionsCount_lte: Int
+  totalNftsBought: Int
+  totalNftsBought_not: Int
+  totalNftsBought_in: [Int]
+  totalNftsBought_not_in: [Int]
+  totalNftsBought_gt: Int
+  totalNftsBought_lt: Int
+  totalNftsBought_gte: Int
+  totalNftsBought_lte: Int
+  totalNftsSold: Int
+  totalNftsSold_not: Int
+  totalNftsSold_in: [Int]
+  totalNftsSold_not_in: [Int]
+  totalNftsSold_gt: Int
+  totalNftsSold_lt: Int
+  totalNftsSold_gte: Int
+  totalNftsSold_lte: Int
+  totalNftsMinted: Int
+  totalNftsMinted_not: Int
+  totalNftsMinted_in: [Int]
+  totalNftsMinted_not_in: [Int]
+  totalNftsMinted_gt: Int
+  totalNftsMinted_lt: Int
+  totalNftsMinted_gte: Int
+  totalNftsMinted_lte: Int
+  firstAcquisitionBlock: BigInt
+  firstAcquisitionBlock_not: BigInt
+  firstAcquisitionBlock_in: [BigInt]
+  firstAcquisitionBlock_not_in: [BigInt]
+  firstAcquisitionBlock_gt: BigInt
+  firstAcquisitionBlock_lt: BigInt
+  firstAcquisitionBlock_gte: BigInt
+  firstAcquisitionBlock_lte: BigInt
+  lastAcquisitionBlock: BigInt
+  lastAcquisitionBlock_not: BigInt
+  lastAcquisitionBlock_in: [BigInt]
+  lastAcquisitionBlock_not_in: [BigInt]
+  lastAcquisitionBlock_gt: BigInt
+  lastAcquisitionBlock_lt: BigInt
+  lastAcquisitionBlock_gte: BigInt
+  lastAcquisitionBlock_lte: BigInt
+}
+
+type nftCollectorHoldings {
+  id: String!
+  collectorAddress: String!
+  collectionAddress: String!
+  tokenCount: Int!
+  firstAcquisitionBlock: BigInt!
+  lastActivityBlock: BigInt!
+}
+
+type nftCollectorHoldingsPage {
+  items: [nftCollectorHoldings!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input nftCollectorHoldingsFilter {
+  AND: [nftCollectorHoldingsFilter]
+  OR: [nftCollectorHoldingsFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  collectorAddress: String
+  collectorAddress_not: String
+  collectorAddress_in: [String]
+  collectorAddress_not_in: [String]
+  collectorAddress_contains: String
+  collectorAddress_not_contains: String
+  collectorAddress_starts_with: String
+  collectorAddress_ends_with: String
+  collectorAddress_not_starts_with: String
+  collectorAddress_not_ends_with: String
+  collectionAddress: String
+  collectionAddress_not: String
+  collectionAddress_in: [String]
+  collectionAddress_not_in: [String]
+  collectionAddress_contains: String
+  collectionAddress_not_contains: String
+  collectionAddress_starts_with: String
+  collectionAddress_ends_with: String
+  collectionAddress_not_starts_with: String
+  collectionAddress_not_ends_with: String
+  tokenCount: Int
+  tokenCount_not: Int
+  tokenCount_in: [Int]
+  tokenCount_not_in: [Int]
+  tokenCount_gt: Int
+  tokenCount_lt: Int
+  tokenCount_gte: Int
+  tokenCount_lte: Int
+  firstAcquisitionBlock: BigInt
+  firstAcquisitionBlock_not: BigInt
+  firstAcquisitionBlock_in: [BigInt]
+  firstAcquisitionBlock_not_in: [BigInt]
+  firstAcquisitionBlock_gt: BigInt
+  firstAcquisitionBlock_lt: BigInt
+  firstAcquisitionBlock_gte: BigInt
+  firstAcquisitionBlock_lte: BigInt
+  lastActivityBlock: BigInt
+  lastActivityBlock_not: BigInt
+  lastActivityBlock_in: [BigInt]
+  lastActivityBlock_not_in: [BigInt]
+  lastActivityBlock_gt: BigInt
+  lastActivityBlock_lt: BigInt
+  lastActivityBlock_gte: BigInt
+  lastActivityBlock_lte: BigInt
+}
+
+type nftCollectionDailyStats {
+  id: String!
+  collectionAddress: String!
+  date: String!
+  transferCount: Int!
+  mintCount: Int!
+  burnCount: Int!
+  uniqueTraders: Int!
+}
+
+type nftCollectionDailyStatsPage {
+  items: [nftCollectionDailyStats!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input nftCollectionDailyStatsFilter {
+  AND: [nftCollectionDailyStatsFilter]
+  OR: [nftCollectionDailyStatsFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  collectionAddress: String
+  collectionAddress_not: String
+  collectionAddress_in: [String]
+  collectionAddress_not_in: [String]
+  collectionAddress_contains: String
+  collectionAddress_not_contains: String
+  collectionAddress_starts_with: String
+  collectionAddress_ends_with: String
+  collectionAddress_not_starts_with: String
+  collectionAddress_not_ends_with: String
+  date: String
+  date_not: String
+  date_in: [String]
+  date_not_in: [String]
+  date_contains: String
+  date_not_contains: String
+  date_starts_with: String
+  date_ends_with: String
+  date_not_starts_with: String
+  date_not_ends_with: String
+  transferCount: Int
+  transferCount_not: Int
+  transferCount_in: [Int]
+  transferCount_not_in: [Int]
+  transferCount_gt: Int
+  transferCount_lt: Int
+  transferCount_gte: Int
+  transferCount_lte: Int
+  mintCount: Int
+  mintCount_not: Int
+  mintCount_in: [Int]
+  mintCount_not_in: [Int]
+  mintCount_gt: Int
+  mintCount_lt: Int
+  mintCount_gte: Int
+  mintCount_lte: Int
+  burnCount: Int
+  burnCount_not: Int
+  burnCount_in: [Int]
+  burnCount_not_in: [Int]
+  burnCount_gt: Int
+  burnCount_lt: Int
+  burnCount_gte: Int
+  burnCount_lte: Int
+  uniqueTraders: Int
+  uniqueTraders_not: Int
+  uniqueTraders_in: [Int]
+  uniqueTraders_not_in: [Int]
+  uniqueTraders_gt: Int
+  uniqueTraders_lt: Int
+  uniqueTraders_gte: Int
+  uniqueTraders_lte: Int
 }

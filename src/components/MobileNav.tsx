@@ -6,10 +6,12 @@ import { usePathname } from "next/navigation";
 import { Drawer, Select } from "antd";
 import { CloseOutlined, HomeOutlined, BlockOutlined, BarChartOutlined, BankOutlined } from "@ant-design/icons";
 import SearchBar from "./SearchBar";
+import { networkPath, stripNetworkPrefix } from "@/lib/links";
+import type { NetworkId } from "@/lib/chains";
 
 interface MobileNavProps {
-  network: "mainnet" | "testnet";
-  onNetworkChange: (network: "mainnet" | "testnet") => void;
+  network: NetworkId;
+  onNetworkChange: (network: NetworkId) => void;
 }
 
 // Using a simple event-based approach to control the drawer from outside
@@ -120,7 +122,10 @@ export default function MobileNav({
           </label>
           <Select
             value={network}
-            onChange={onNetworkChange}
+            onChange={(value) => {
+              onNetworkChange(value);
+              setOpen(false);
+            }}
             style={{ width: "100%" }}
             options={[
               {
@@ -141,7 +146,6 @@ export default function MobileNav({
               },
               {
                 value: "testnet",
-                disabled: true,
                 label: (
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span
@@ -149,21 +153,10 @@ export default function MobileNav({
                         width: 8,
                         height: 8,
                         borderRadius: "50%",
-                        background: "var(--text-muted)",
+                        background: "#F59E0B",
                       }}
                     />
                     Testnet
-                    <span
-                      style={{
-                        fontSize: 10,
-                        padding: "2px 6px",
-                        background: "var(--bg-tertiary)",
-                        borderRadius: 4,
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      Coming Soon
-                    </span>
                   </span>
                 ),
               },
@@ -187,11 +180,14 @@ export default function MobileNav({
           </label>
           <nav style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
             {navItems.map(({ path, label, icon }) => {
-              const isActive = path === "/" ? pathname === "/" : pathname.startsWith(path);
+              const fullPath = networkPath(path, network);
+              const basePath = stripNetworkPrefix(pathname);
+              const isActive = path === "/" ? basePath === "/" : basePath.startsWith(path);
+              const accentColor = network === "testnet" ? "#F59E0B" : "var(--flow-green)";
               return (
                 <Link
                   key={path}
-                  href={path}
+                  href={fullPath}
                   onClick={handleNavClick}
                   style={{
                     display: "flex",
@@ -200,7 +196,7 @@ export default function MobileNav({
                     padding: "var(--space-md)",
                     borderRadius: "var(--radius-md)",
                     background: isActive ? "var(--bg-card)" : "transparent",
-                    color: isActive ? "var(--flow-green)" : "var(--text-secondary)",
+                    color: isActive ? accentColor : "var(--text-secondary)",
                     fontWeight: 500,
                     fontSize: 15,
                     transition: "all 0.2s",

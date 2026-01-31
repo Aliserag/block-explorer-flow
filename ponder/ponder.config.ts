@@ -1,14 +1,23 @@
 import { createConfig } from "@ponder/core";
 import { http } from "viem";
 
-// ERC-20 ABI - only Transfer event needed
-const erc20TransferAbi = [
+// ERC-20 ABI - Transfer and Approval events
+const erc20Abi = [
   {
     type: "event",
     name: "Transfer",
     inputs: [
       { indexed: true, name: "from", type: "address" },
       { indexed: true, name: "to", type: "address" },
+      { indexed: false, name: "value", type: "uint256" },
+    ],
+  },
+  {
+    type: "event",
+    name: "Approval",
+    inputs: [
+      { indexed: true, name: "owner", type: "address" },
+      { indexed: true, name: "spender", type: "address" },
       { indexed: false, name: "value", type: "uint256" },
     ],
   },
@@ -80,10 +89,10 @@ export default createConfig({
     },
   },
   contracts: {
-    // Wildcard ERC-20 indexing - catches ALL Transfer events
+    // Wildcard ERC-20 indexing - catches ALL Transfer and Approval events
     ERC20: {
       network: "flowEvm",
-      abi: erc20TransferAbi,
+      abi: erc20Abi,
       startBlock,
     },
     // Wildcard ERC-721 indexing - catches ALL NFT Transfer events

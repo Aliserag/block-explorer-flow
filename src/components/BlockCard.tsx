@@ -3,6 +3,8 @@
 import Link from "next/link";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { networkPath } from "@/lib/links";
+import type { NetworkId } from "@/lib/chains";
 
 dayjs.extend(relativeTime);
 
@@ -14,12 +16,18 @@ interface Block {
   gasUsed: string;
 }
 
-export default function BlockCard({ block }: { block: Block }) {
+interface BlockCardProps {
+  block: Block;
+  network?: NetworkId;
+}
+
+export default function BlockCard({ block, network = "mainnet" }: BlockCardProps) {
   const timeAgo = block.timestampDate ? dayjs(block.timestampDate).fromNow() : "-";
+  const accentColor = network === "testnet" ? "#F59E0B" : "var(--flow-green)";
 
   return (
     <Link
-      href={`/block/${block.number}`}
+      href={networkPath(`/block/${block.number}`, network)}
       style={{
         display: "block",
         background: "var(--bg-card)",
@@ -35,7 +43,9 @@ export default function BlockCard({ block }: { block: Block }) {
           style={{
             width: 48,
             height: 48,
-            background: "linear-gradient(135deg, var(--flow-green) 0%, var(--flow-green-dark) 100%)",
+            background: network === "testnet"
+              ? "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
+              : "linear-gradient(135deg, var(--flow-green) 0%, var(--flow-green-dark) 100%)",
             borderRadius: "var(--radius-md)",
             display: "flex",
             alignItems: "center",

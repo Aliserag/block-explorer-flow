@@ -5,9 +5,11 @@ import { Skeleton, Empty } from "antd";
 import { WalletOutlined } from "@ant-design/icons";
 import TokenRow from "./TokenRow";
 import { type TokenBalance } from "@/lib/tokens";
+import type { NetworkId } from "@/lib/chains";
 
 interface TokenListProps {
   address: string;
+  network?: NetworkId;
 }
 
 interface ApiTokenResponse {
@@ -40,7 +42,7 @@ interface DiscoveredTokenResponse {
   }>;
 }
 
-export default function TokenList({ address }: TokenListProps) {
+export default function TokenList({ address, network = "mainnet" }: TokenListProps) {
   const [balances, setBalances] = useState<TokenBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,9 +56,9 @@ export default function TokenList({ address }: TokenListProps) {
         setLoading(true);
         setError(null);
 
-        // Try Ponder-discovered tokens first
+        // Try Ponder-discovered tokens first (only available on mainnet)
         try {
-          const ponderResponse = await fetch(`/api/tokens/discovered?address=${address}`);
+          const ponderResponse = await fetch(`/api/tokens/discovered?address=${address}&network=${network}`);
           if (ponderResponse.ok) {
             const ponderData: DiscoveredTokenResponse = await ponderResponse.json();
             if (ponderData.available && ponderData.tokenCount > 0) {
@@ -83,7 +85,7 @@ export default function TokenList({ address }: TokenListProps) {
         }
 
         // Fall back to multicall-based API
-        const response = await fetch(`/api/tokens/${address}`);
+        const response = await fetch(`/api/tokens/${address}?network=${network}`);
         if (!response.ok) {
           throw new Error("Failed to fetch token balances");
         }
@@ -122,7 +124,7 @@ export default function TokenList({ address }: TokenListProps) {
     return () => {
       mounted = false;
     };
-  }, [address]);
+  }, [address, network]);
 
   // Loading skeleton
   if (loading) {

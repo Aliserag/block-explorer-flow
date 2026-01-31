@@ -6,9 +6,11 @@ import {
 } from "@/lib/ponder";
 import { getTokenLogoUrl } from "@/lib/tokenLogo";
 import { formatUnits } from "viem";
+import { isValidNetwork, type NetworkId } from "@/lib/chains";
 
 // Import the static token list for logo fallback
 import tokenRegistry from "@/data/tokens.json";
+import tokenRegistryTestnet from "@/data/tokens-testnet.json";
 
 export const dynamic = "force-dynamic";
 
@@ -34,11 +36,25 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
 
+  // Network param (defaults to mainnet)
+  const networkParam = searchParams.get("network") || "mainnet";
+  const network: NetworkId = isValidNetwork(networkParam) ? networkParam : "mainnet";
+
   if (!address) {
     return NextResponse.json(
       { error: "Address parameter required" },
       { status: 400 }
     );
+  }
+
+  // For testnet, indexed data is not available (Ponder only runs on mainnet)
+  if (network === "testnet") {
+    return NextResponse.json<TokenDiscoveryResponse>({
+      available: false,
+      address,
+      tokenCount: 0,
+      tokens: [],
+    });
   }
 
   // Check if Ponder is available

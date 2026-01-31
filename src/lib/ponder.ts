@@ -1,4 +1,7 @@
 // Ponder GraphQL client for historical/indexed data
+// NOTE: Ponder is mainnet-only. Testnet requests return null/empty for graceful degradation.
+
+import { type NetworkId } from "./chains";
 
 const PONDER_URL = process.env.NEXT_PUBLIC_PONDER_URL || "http://localhost:42069";
 
@@ -139,7 +142,10 @@ export interface HourlyStats {
 
 // ============ Block Queries ============
 
-export async function getIndexedBlocks(limit = 20) {
+export async function getIndexedBlocks(limit = 20, network: NetworkId = "mainnet") {
+  // Testnet: no indexed data available
+  if (network === "testnet") return [];
+
   const result = await query<{ blockss: { items: IndexedBlock[] } }>(`
     query GetBlocks($limit: Int!) {
       blockss(limit: $limit, orderBy: "number", orderDirection: "desc") {
@@ -160,7 +166,9 @@ export async function getIndexedBlocks(limit = 20) {
   return result?.blockss?.items ?? [];
 }
 
-export async function getIndexedBlock(number: string) {
+export async function getIndexedBlock(number: string, network: NetworkId = "mainnet") {
+  if (network === "testnet") return null;
+
   const result = await query<{ blockss: { items: IndexedBlock[] } }>(`
     query GetBlock($number: BigInt!) {
       blockss(where: { number: $number }, limit: 1) {
@@ -183,7 +191,9 @@ export async function getIndexedBlock(number: string) {
 
 // ============ Transaction Queries ============
 
-export async function getAccountTransactions(address: string, limit = 20) {
+export async function getAccountTransactions(address: string, limit = 20, network: NetworkId = "mainnet") {
+  if (network === "testnet") return [];
+
   const result = await query<{ transactionss: { items: IndexedTransaction[] } }>(`
     query GetAccountTransactions($address: String!, $limit: Int!) {
       transactionss(
@@ -213,7 +223,9 @@ export async function getAccountTransactions(address: string, limit = 20) {
   return result?.transactionss?.items ?? [];
 }
 
-export async function getAccountTransactionCount(address: string): Promise<number> {
+export async function getAccountTransactionCount(address: string, network: NetworkId = "mainnet"): Promise<number> {
+  if (network === "testnet") return 0;
+
   const result = await query<{ accounts: { transactionCount: number } | null }>(`
     query GetAccountTxCount($address: String!) {
       accounts(address: $address) {
@@ -225,7 +237,9 @@ export async function getAccountTransactionCount(address: string): Promise<numbe
   return result?.accounts?.transactionCount ?? 0;
 }
 
-export async function getBlockTransactions(blockNumber: string, limit = 50) {
+export async function getBlockTransactions(blockNumber: string, limit = 50, network: NetworkId = "mainnet") {
+  if (network === "testnet") return [];
+
   const result = await query<{ transactionss: { items: IndexedTransaction[] } }>(`
     query GetBlockTransactions($blockNumber: BigInt!, $limit: Int!) {
       transactionss(
@@ -255,7 +269,9 @@ export async function getBlockTransactions(blockNumber: string, limit = 50) {
   return result?.transactionss?.items ?? [];
 }
 
-export async function getRecentTransactions(limit = 10): Promise<IndexedTransaction[]> {
+export async function getRecentTransactions(limit = 10, network: NetworkId = "mainnet"): Promise<IndexedTransaction[]> {
+  if (network === "testnet") return [];
+
   const result = await query<{ transactionss: { items: IndexedTransaction[] } }>(`
     query GetRecentTransactions($limit: Int!) {
       transactionss(
@@ -286,7 +302,9 @@ export async function getRecentTransactions(limit = 10): Promise<IndexedTransact
 
 // ============ Account Queries ============
 
-export async function getIndexedAccount(address: string) {
+export async function getIndexedAccount(address: string, network: NetworkId = "mainnet") {
+  if (network === "testnet") return null;
+
   const result = await query<{ accounts: IndexedAccount | null }>(`
     query GetAccount($address: String!) {
       accounts(address: $address) {
@@ -306,7 +324,9 @@ export async function getIndexedAccount(address: string) {
 
 // ============ Token Queries ============
 
-export async function getAccountTokenBalances(address: string): Promise<IndexedTokenBalance[]> {
+export async function getAccountTokenBalances(address: string, network: NetworkId = "mainnet"): Promise<IndexedTokenBalance[]> {
+  if (network === "testnet") return [];
+
   const result = await query<{ accountTokenBalancess: { items: IndexedTokenBalance[] } }>(`
     query GetAccountTokens($address: String!) {
       accountTokenBalancess(
@@ -332,8 +352,8 @@ export async function getAccountTokenBalances(address: string): Promise<IndexedT
   return balances.filter((b) => BigInt(b.balance) > 0n);
 }
 
-export async function getTokenMetadata(addresses: string[]): Promise<IndexedToken[]> {
-  if (addresses.length === 0) return [];
+export async function getTokenMetadata(addresses: string[], network: NetworkId = "mainnet"): Promise<IndexedToken[]> {
+  if (network === "testnet" || addresses.length === 0) return [];
 
   const result = await query<{ tokenss: { items: IndexedToken[] } }>(`
     query GetTokenMetadata($addresses: [String!]!) {
@@ -358,7 +378,9 @@ export async function getTokenMetadata(addresses: string[]): Promise<IndexedToke
   return result?.tokenss?.items ?? [];
 }
 
-export async function getAllTokens(limit = 100): Promise<IndexedToken[]> {
+export async function getAllTokens(limit = 100, network: NetworkId = "mainnet"): Promise<IndexedToken[]> {
+  if (network === "testnet") return [];
+
   const result = await query<{ tokenss: { items: IndexedToken[] } }>(`
     query GetAllTokens($limit: Int!) {
       tokenss(
@@ -385,8 +407,11 @@ export async function getAllTokens(limit = 100): Promise<IndexedToken[]> {
 
 export async function getTokenTransfers(
   tokenAddress: string,
-  limit = 25
+  limit = 25,
+  network: NetworkId = "mainnet"
 ): Promise<IndexedTokenTransfer[]> {
+  if (network === "testnet") return [];
+
   const result = await query<{ tokenTransferss: { items: IndexedTokenTransfer[] } }>(`
     query GetTokenTransfers($tokenAddress: String!, $limit: Int!) {
       tokenTransferss(
@@ -415,8 +440,11 @@ export async function getTokenTransfers(
 
 export async function getAccountTokenTransfers(
   address: string,
-  limit = 25
+  limit = 25,
+  network: NetworkId = "mainnet"
 ): Promise<IndexedTokenTransfer[]> {
+  if (network === "testnet") return [];
+
   const result = await query<{ tokenTransferss: { items: IndexedTokenTransfer[] } }>(`
     query GetAccountTokenTransfers($address: String!, $limit: Int!) {
       tokenTransferss(
@@ -445,7 +473,9 @@ export async function getAccountTokenTransfers(
 
 // ============ Contract Queries ============
 
-export async function getRecentContracts(limit = 20): Promise<IndexedContract[]> {
+export async function getRecentContracts(limit = 20, network: NetworkId = "mainnet"): Promise<IndexedContract[]> {
+  if (network === "testnet") return [];
+
   const result = await query<{ contractss: { items: IndexedContract[] } }>(`
     query GetRecentContracts($limit: Int!) {
       contractss(
@@ -468,7 +498,9 @@ export async function getRecentContracts(limit = 20): Promise<IndexedContract[]>
   return result?.contractss?.items ?? [];
 }
 
-export async function getContract(address: string): Promise<IndexedContract | null> {
+export async function getContract(address: string, network: NetworkId = "mainnet"): Promise<IndexedContract | null> {
+  if (network === "testnet") return null;
+
   const result = await query<{ contracts: IndexedContract | null }>(`
     query GetContract($address: String!) {
       contracts(address: $address) {
@@ -487,8 +519,11 @@ export async function getContract(address: string): Promise<IndexedContract | nu
 
 export async function getContractsByDeployer(
   deployerAddress: string,
-  limit = 20
+  limit = 20,
+  network: NetworkId = "mainnet"
 ): Promise<IndexedContract[]> {
+  if (network === "testnet") return [];
+
   const result = await query<{ contractss: { items: IndexedContract[] } }>(`
     query GetContractsByDeployer($deployerAddress: String!, $limit: Int!) {
       contractss(
@@ -514,7 +549,9 @@ export async function getContractsByDeployer(
 
 // ============ Analytics Queries ============
 
-export async function getDailyStats(days = 30): Promise<DailyStats[]> {
+export async function getDailyStats(days = 30, network: NetworkId = "mainnet"): Promise<DailyStats[]> {
+  if (network === "testnet") return [];
+
   const result = await query<{ dailyStatss: { items: DailyStats[] } }>(`
     query GetDailyStats($limit: Int!) {
       dailyStatss(
@@ -541,7 +578,9 @@ export async function getDailyStats(days = 30): Promise<DailyStats[]> {
   return result?.dailyStatss?.items ?? [];
 }
 
-export async function getHourlyStats(hours = 24): Promise<HourlyStats[]> {
+export async function getHourlyStats(hours = 24, network: NetworkId = "mainnet"): Promise<HourlyStats[]> {
+  if (network === "testnet") return [];
+
   const result = await query<{ hourlyStatss: { items: HourlyStats[] } }>(`
     query GetHourlyStats($limit: Int!) {
       hourlyStatss(
@@ -567,7 +606,10 @@ export async function getHourlyStats(hours = 24): Promise<HourlyStats[]> {
 
 // ============ Utility Functions ============
 
-export async function isPonderAvailable(): Promise<boolean> {
+export async function isPonderAvailable(network: NetworkId = "mainnet"): Promise<boolean> {
+  // Ponder is not available for testnet
+  if (network === "testnet") return false;
+
   try {
     const response = await fetch(`${PONDER_URL}/ready`, {
       next: { revalidate: 10 },
@@ -578,10 +620,15 @@ export async function isPonderAvailable(): Promise<boolean> {
   }
 }
 
-export async function getPonderSyncStatus(): Promise<{
+export async function getPonderSyncStatus(network: NetworkId = "mainnet"): Promise<{
   synced: boolean;
   latestBlock: string | null;
 }> {
+  // Ponder is not available for testnet
+  if (network === "testnet") {
+    return { synced: false, latestBlock: null };
+  }
+
   const result = await query<{ blockss: { items: Array<{ number: string }> } }>(`
     query GetLatestBlock {
       blockss(limit: 1, orderBy: "number", orderDirection: "desc") {

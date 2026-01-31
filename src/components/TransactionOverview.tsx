@@ -3,13 +3,16 @@
 import { Tag } from "antd";
 import DataField from "./DataField";
 import { type Transaction, type TransactionReceipt } from "viem";
+import { networkPath } from "@/lib/links";
+import type { NetworkId } from "@/lib/chains";
 
 interface TransactionOverviewProps {
   tx: Transaction;
   receipt: TransactionReceipt | null;
+  network?: NetworkId;
 }
 
-export default function TransactionOverview({ tx, receipt }: TransactionOverviewProps) {
+export default function TransactionOverview({ tx, receipt, network = "mainnet" }: TransactionOverviewProps) {
   const status = receipt?.status === "success" ? 1 : receipt?.status === "reverted" ? 0 : null;
 
   const statusTag =
@@ -68,13 +71,13 @@ export default function TransactionOverview({ tx, receipt }: TransactionOverview
         <DataField label="Transaction Hash" value={tx.hash} mono copyable />
         <DataField label="Status" value={status === 1 ? "Success" : status === 0 ? "Failed" : "Pending"} />
         {tx.blockNumber && (
-          <DataField label="Block" value={`#${Number(tx.blockNumber).toLocaleString()}`} href={`/block/${tx.blockNumber}`} />
+          <DataField label="Block" value={`#${Number(tx.blockNumber).toLocaleString()}`} href={networkPath(`/block/${tx.blockNumber}`, network)} />
         )}
-        <DataField label="From" value={tx.from} mono copyable href={`/account/${tx.from}`} />
+        <DataField label="From" value={tx.from} mono copyable href={networkPath(`/account/${tx.from}`, network)} />
         {tx.to ? (
-          <DataField label="To" value={tx.to} mono copyable href={`/account/${tx.to}`} />
+          <DataField label="To" value={tx.to} mono copyable href={networkPath(`/account/${tx.to}`, network)} />
         ) : receipt?.contractAddress ? (
-          <DataField label="Contract Created" value={receipt.contractAddress} mono copyable href={`/account/${receipt.contractAddress}`} />
+          <DataField label="Contract Created" value={receipt.contractAddress} mono copyable href={networkPath(`/account/${receipt.contractAddress}`, network)} />
         ) : (
           <DataField label="To" value="Contract Creation" />
         )}

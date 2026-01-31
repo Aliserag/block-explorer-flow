@@ -14,6 +14,8 @@ import DataField from "@/components/DataField";
 import TokenList from "@/components/TokenList";
 import ContractDetails from "@/components/ContractDetails";
 import Link from "next/link";
+import { networkPath } from "@/lib/links";
+import type { NetworkId } from "@/lib/chains";
 
 interface Transaction {
   hash: string;
@@ -35,6 +37,7 @@ interface AccountContentProps {
   code: string;
   isContract: boolean;
   txHistory: Transaction[];
+  network?: NetworkId;
 }
 
 const PAGE_SIZE = 25;
@@ -77,6 +80,7 @@ export default function AccountContent({
   code,
   isContract,
   txHistory: initialTxHistory,
+  network = "mainnet",
 }: AccountContentProps) {
   // Determine account type
   const accountType = getAccountType(address, isContract);
@@ -101,9 +105,9 @@ export default function AccountContent({
       setTxLoading(true);
 
       try {
-        // Try Ponder indexed data first
+        // Try Ponder indexed data first (only for mainnet)
         const offset = (currentPage - 1) * PAGE_SIZE;
-        const ponderUrl = `/api/transactions/indexed?address=${address}&limit=${PAGE_SIZE}&offset=${offset}`;
+        const ponderUrl = `/api/transactions/indexed?address=${address}&limit=${PAGE_SIZE}&offset=${offset}&network=${network}`;
 
         const response = await fetch(ponderUrl);
         if (response.ok) {
@@ -207,7 +211,7 @@ export default function AccountContent({
         <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
           <DollarOutlined /> Token Holdings
         </h3>
-        <TokenList address={address} />
+        <TokenList address={address} network={network} />
       </div>
 
       {/* Account Details */}
@@ -364,7 +368,7 @@ export default function AccountContent({
                       >
                         <td style={{ padding: "var(--space-md)" }}>
                           <Link
-                            href={`/tx/${tx.hash}`}
+                            href={networkPath(`/tx/${tx.hash}`, network)}
                             className="mono"
                             style={{ color: "var(--flow-green)", fontSize: 13, textDecoration: "none" }}
                           >
@@ -373,7 +377,7 @@ export default function AccountContent({
                         </td>
                         <td style={{ padding: "var(--space-md)" }}>
                           <Link
-                            href={`/block/${tx.blockNumber}`}
+                            href={networkPath(`/block/${tx.blockNumber}`, network)}
                             className="mono"
                             style={{ color: "var(--text-accent)", fontSize: 13, textDecoration: "none" }}
                           >
@@ -397,7 +401,7 @@ export default function AccountContent({
                         </td>
                         <td style={{ padding: "var(--space-md)" }}>
                           <Link
-                            href={`/account/${tx.from}`}
+                            href={networkPath(`/account/${tx.from}`, network)}
                             className="mono"
                             style={{
                               color: isOut ? "var(--text-secondary)" : "var(--text-accent)",
@@ -411,7 +415,7 @@ export default function AccountContent({
                         <td style={{ padding: "var(--space-md)" }}>
                           {tx.to ? (
                             <Link
-                              href={`/account/${tx.to}`}
+                              href={networkPath(`/account/${tx.to}`, network)}
                               className="mono"
                               style={{
                                 color: isOut ? "var(--text-accent)" : "var(--text-secondary)",
@@ -561,7 +565,7 @@ export default function AccountContent({
           </div>
           {showContractTab && (
             <Link
-              href={`/contract/${address}`}
+              href={networkPath(`/contract/${address}`, network)}
               style={{
                 display: "inline-flex",
                 alignItems: "center",

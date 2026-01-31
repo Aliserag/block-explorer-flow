@@ -4,6 +4,7 @@ import {
   getAccountTransactionCount,
   isPonderAvailable,
 } from "@/lib/ponder";
+import { isValidNetwork, type NetworkId } from "@/lib/chains";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +31,25 @@ export async function GET(request: Request) {
   // For now, we only return the first page of results
   // TODO: Implement cursor-based pagination for full support
 
+  // Network param (defaults to mainnet)
+  const networkParam = searchParams.get("network") || "mainnet";
+  const network: NetworkId = isValidNetwork(networkParam) ? networkParam : "mainnet";
+
   if (!address) {
     return NextResponse.json(
       { error: "Address parameter required" },
       { status: 400 }
     );
+  }
+
+  // For testnet, indexed data is not available (Ponder only runs on mainnet)
+  if (network === "testnet") {
+    return NextResponse.json<TransactionResponse>({
+      available: false,
+      address,
+      totalCount: 0,
+      transactions: [],
+    });
   }
 
   // Check if Ponder is available

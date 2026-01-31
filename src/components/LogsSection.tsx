@@ -3,9 +3,11 @@
 import { Collapse, Tag } from "antd";
 import { type Log, decodeEventLog } from "viem";
 import DataField from "./DataField";
+import type { NetworkId } from "@/lib/chains";
 
 interface LogsSectionProps {
   logs: Log[];
+  network?: NetworkId;
 }
 
 // Common ERC-20/ERC-721 event ABIs
@@ -60,7 +62,7 @@ function decodeLog(log: Log) {
   return null;
 }
 
-export default function LogsSection({ logs }: LogsSectionProps) {
+export default function LogsSection({ logs, network = "mainnet" }: LogsSectionProps) {
   if (!logs || logs.length === 0) {
     return (
       <div style={{ color: "var(--text-muted)", padding: "var(--space-md)" }}>

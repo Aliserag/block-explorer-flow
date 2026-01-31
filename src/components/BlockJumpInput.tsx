@@ -8,9 +8,10 @@ import { SearchOutlined } from "@ant-design/icons";
 interface BlockJumpInputProps {
   currentBlock?: number;
   latestBlock?: number;
+  baseUrl?: string;
 }
 
-export default function BlockJumpInput({ currentBlock, latestBlock }: BlockJumpInputProps) {
+export default function BlockJumpInput({ currentBlock, latestBlock, baseUrl = "/block" }: BlockJumpInputProps) {
   const router = useRouter();
   const [blockNumber, setBlockNumber] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +27,7 @@ export default function BlockJumpInput({ currentBlock, latestBlock }: BlockJumpI
       return;
     }
     setError("");
-    router.push(`/block/${num}`);
+    router.push(`${baseUrl}/${num}`);
     setBlockNumber("");
   };
 

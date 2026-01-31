@@ -61,3 +61,17 @@ export const chains = {
 } as const;
 
 export const defaultNetwork: NetworkId = "mainnet";
+
+// Network helper constants and functions
+export const CHAIN_IDS = {
+  mainnet: 747,
+  testnet: 545,
+} as const;
+
+export function isValidNetwork(network: string): network is NetworkId {
+  return network === "mainnet" || network === "testnet";
+}
+
+export function getChainId(network: NetworkId): number {
+  return CHAIN_IDS[network];
+}

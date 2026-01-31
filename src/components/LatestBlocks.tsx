@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import BlockCard from "./BlockCard";
+import { networkPath } from "@/lib/links";
+import type { NetworkId } from "@/lib/chains";
 
 interface Block {
   number: string;
@@ -17,7 +19,12 @@ interface BlocksData {
   latestBlock: string;
 }
 
-export default function LatestBlocks({ initialData }: { initialData: BlocksData }) {
+interface LatestBlocksProps {
+  initialData: BlocksData;
+  network?: NetworkId;
+}
+
+export default function LatestBlocks({ initialData, network = "mainnet" }: LatestBlocksProps) {
   const [data, setData] = useState<BlocksData>(initialData);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -25,7 +32,7 @@ export default function LatestBlocks({ initialData }: { initialData: BlocksData 
     const fetchBlocks = async () => {
       try {
         setIsRefreshing(true);
-        const res = await fetch("/api/blocks?limit=10");
+        const res = await fetch(`/api/blocks?limit=10&network=${network}`);
         if (res.ok) {
           const newData = await res.json();
           setData(newData);
@@ -41,7 +48,7 @@ export default function LatestBlocks({ initialData }: { initialData: BlocksData 
     const interval = setInterval(fetchBlocks, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [network]);
 
   return (
     <div style={{ marginBottom: "var(--space-2xl)" }}>
@@ -77,14 +84,14 @@ export default function LatestBlocks({ initialData }: { initialData: BlocksData 
             #{Number(data.latestBlock).toLocaleString()}
           </span>
         </h2>
-        <Link href="/blocks" style={{ color: "var(--text-accent)", fontSize: 14, fontWeight: 500 }}>
+        <Link href={networkPath("/blocks", network)} style={{ color: "var(--text-accent)", fontSize: 14, fontWeight: 500 }}>
           View All →
         </Link>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
         {data.blocks.map((block) => (
-          <BlockCard key={block.hash} block={block} />
+          <BlockCard key={block.hash} block={block} network={network} />
         ))}
       </div>
     </div>

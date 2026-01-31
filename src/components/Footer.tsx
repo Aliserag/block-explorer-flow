@@ -1,4 +1,15 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import { getNetworkFromPathname } from "@/lib/links";
+import { getChainId } from "@/lib/chains";
+
 export default function Footer() {
+  const pathname = usePathname();
+  const network = getNetworkFromPathname(pathname);
+  const chainId = getChainId(network);
+  const networkLabel = network === "testnet" ? "Testnet" : "Mainnet";
+
   return (
     <footer
       style={{
@@ -18,7 +29,7 @@ export default function Footer() {
           }}
         >
           <div style={{ color: "var(--text-muted)", fontSize: 13 }}>
-            Flow EVM Block Explorer • Chain ID: 747
+            Flow EVM Block Explorer • {networkLabel} • Chain ID: {chainId}
           </div>
           <div style={{ display: "flex", gap: "var(--space-lg)" }}>
             <a

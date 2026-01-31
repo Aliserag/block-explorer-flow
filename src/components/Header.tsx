@@ -1,16 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Select, Button } from "antd";
 import { MenuOutlined } from "@ant-design/icons";
-import { useState } from "react";
 import MobileNav, { openMobileNav } from "./MobileNav";
 import SearchBar from "./SearchBar";
+import { getNetworkFromPathname, networkPath, stripNetworkPrefix } from "@/lib/links";
+import type { NetworkId } from "@/lib/chains";
 
 export default function Header() {
-  const [network, setNetwork] = useState<"mainnet" | "testnet">("mainnet");
   const pathname = usePathname();
+  const router = useRouter();
+  const network = getNetworkFromPathname(pathname);
+
+  const handleNetworkChange = (newNetwork: NetworkId) => {
+    // Get the path without network prefix, then add new network prefix
+    const basePath = stripNetworkPrefix(pathname);
+    const newPath = networkPath(basePath, newNetwork);
+    router.push(newPath);
+  };
 
   return (
     <header
@@ -88,7 +97,7 @@ export default function Header() {
           <div className="desktop-only">
             <Select
               value={network}
-              onChange={setNetwork}
+              onChange={handleNetworkChange}
               style={{ width: 140 }}
               popupMatchSelectWidth={false}
               options={[
@@ -110,7 +119,6 @@ export default function Header() {
                 },
                 {
                   value: "testnet",
-                  disabled: true,
                   label: (
                     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span
@@ -118,22 +126,10 @@ export default function Header() {
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          background: "var(--text-muted)",
+                          background: "#F59E0B",
                         }}
                       />
                       Testnet
-                      <span
-                        style={{
-                          fontSize: 10,
-                          padding: "2px 5px",
-                          background: "var(--bg-tertiary)",
-                          borderRadius: 4,
-                          color: "var(--text-muted)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Soon
-                      </span>
                     </span>
                   ),
                 },
@@ -153,7 +149,7 @@ export default function Header() {
           {/* Mobile Navigation Drawer */}
           <MobileNav
             network={network}
-            onNetworkChange={setNetwork}
+            onNetworkChange={handleNetworkChange}
           />
         </div>
       </div>
@@ -168,17 +164,22 @@ export default function Header() {
               { path: "/defi", label: "DeFi" },
               { path: "/analytics", label: "Analytics" },
             ].map(({ path, label }) => {
-              const isActive = path === "/" ? pathname === "/" : pathname.startsWith(path);
+              const fullPath = networkPath(path, network);
+              const basePath = stripNetworkPrefix(pathname);
+              const isActive = path === "/"
+                ? basePath === "/"
+                : basePath.startsWith(path);
+              const accentColor = network === "testnet" ? "#F59E0B" : "var(--flow-green)";
               return (
                 <Link
                   key={path}
-                  href={path}
+                  href={fullPath}
                   style={{
                     padding: "var(--space-md) var(--space-sm)",
-                    color: isActive ? "var(--flow-green)" : "var(--text-secondary)",
+                    color: isActive ? accentColor : "var(--text-secondary)",
                     fontWeight: 500,
                     fontSize: 14,
-                    borderBottom: isActive ? "2px solid var(--flow-green)" : "2px solid transparent",
+                    borderBottom: isActive ? `2px solid ${accentColor}` : "2px solid transparent",
                     marginBottom: -1,
                   }}
                 >

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { message } from "antd";
 import { SearchOutlined, LoadingOutlined, CloseCircleFilled } from "@ant-design/icons";
+import { getNetworkFromPathname, networkPath } from "@/lib/links";
 
 interface SearchBarProps {
   className?: string;
@@ -21,6 +22,8 @@ export default function SearchBar({
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const network = getNetworkFromPathname(pathname);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -29,17 +32,20 @@ export default function SearchBar({
     const q = query.trim();
 
     try {
+      let targetPath: string;
       if (/^0x[a-fA-F0-9]{64}$/.test(q)) {
-        router.push(`/tx/${q}`);
+        targetPath = `/tx/${q}`;
       } else if (/^0x[a-fA-F0-9]{40}$/.test(q)) {
-        router.push(`/account/${q}`);
+        targetPath = `/account/${q}`;
       } else if (/^\d+$/.test(q)) {
-        router.push(`/block/${q}`);
+        targetPath = `/block/${q}`;
       } else {
         message.warning("Invalid search query");
         setIsSearching(false);
         return;
       }
+      // Preserve network context in navigation
+      router.push(networkPath(targetPath, network));
       setQuery("");
     } finally {
       setIsSearching(false);
