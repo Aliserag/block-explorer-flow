@@ -7,7 +7,7 @@ import {
   eventLogs,
   tokens,
   tokenTransfers,
-} from "../ponder.schema";
+} from "ponder:schema";
 import { erc20Abi, createPublicClient, http } from "viem";
 
 // Create a standalone viem client for operations not supported by Ponder's context.client

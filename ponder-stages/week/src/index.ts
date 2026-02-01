@@ -13,7 +13,7 @@ import {
   nfts,
   nftTransfers,
   nftOwnership,
-} from "../ponder.schema";
+} from "ponder:schema";
 import { createPublicClient, http, erc20Abi } from "viem";
 
 // Create a dedicated viem client for fetching block data with transactions
