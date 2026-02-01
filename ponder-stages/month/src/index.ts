@@ -410,15 +410,34 @@ ponder.on("ERC20:Transfer", async ({ event, context }) => {
     }
   }
 
-  // Update daily stats token transfer count
+  // Update daily stats token transfer count (upsert to handle race conditions)
   const dateKey = getDateKey(timestamp);
-  await db.update(dailyStats, { date: dateKey }).set((row) => ({
+  await db.insert(dailyStats).values({
+    date: dateKey,
+    transactionCount: 0,
+    blockCount: 0,
+    contractsDeployed: 0,
+    totalGasUsed: 0n,
+    avgGasPrice: 0n,
+    uniqueFromAddresses: 0,
+    uniqueToAddresses: 0,
+    tokenTransferCount: 1,
+    totalValueTransferred: 0n,
+  }).onConflictDoUpdate((row) => ({
     tokenTransferCount: row.tokenTransferCount + 1,
   }));
 
-  // Update hourly stats token transfer count
+  // Update hourly stats token transfer count (upsert to handle race conditions)
   const hourKey = getHourKey(timestamp);
-  await db.update(hourlyStats, { hour: hourKey }).set((row) => ({
+  await db.insert(hourlyStats).values({
+    hour: hourKey,
+    transactionCount: 0,
+    blockCount: 0,
+    contractsDeployed: 0,
+    totalGasUsed: 0n,
+    avgGasPrice: 0n,
+    tokenTransferCount: 1,
+  }).onConflictDoUpdate((row) => ({
     tokenTransferCount: row.tokenTransferCount + 1,
   }));
 });
