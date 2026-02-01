@@ -11,13 +11,14 @@ import {
 import { erc20Abi, createPublicClient, http } from "viem";
 
 // Create a standalone viem client for operations not supported by Ponder's context.client
+// NOTE: Batching disabled - Flow RPC returns "batch too large" errors with JSON-RPC batching
 const rpcUrl = process.env.FLOW_EVM_RPC_URL_PRIMARY
   ?? process.env.FLOW_EVM_RPC_URL
   ?? "https://mainnet.evm.nodes.onflow.org";
 
 const viemClient = createPublicClient({
   transport: http(rpcUrl, {
-    batch: { batchSize: 100, wait: 20 },
+    // batch: false - Flow RPC doesn't support JSON-RPC request batching
     retryCount: 5,
     retryDelay: 500,
     timeout: 30000,
