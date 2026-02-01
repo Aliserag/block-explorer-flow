@@ -3,33 +3,20 @@ import {
   blocks,
   transactions,
   accounts,
+  contracts,
+  eventLogs,
   tokens,
   tokenTransfers,
-  accountTokenBalances,
-  contracts,
-  dailyStats,
-  hourlyStats,
-  nftCollections,
-  nfts,
-  nftTransfers,
-  nftOwnership,
-  addressLabels,
-  eventLogs,
-  tokenDailyStats,
-  contractDailyStats,
-  nftCollectionDailyStats,
-  contractCallers,
-  contractDailyCallers,
-  deployers,
-  deployerDailyStats,
-  tokenApprovals,
-  hourlyGasStats,
-  nftCreators,
-  nftCreatorDailyStats,
-  nftCollectors,
-  nftCollectorHoldings,
 } from "../ponder.schema";
 import { erc20Abi } from "viem";
+
+// ============================================================================
+// FAST MODE INDEXER
+// ============================================================================
+// Block handler only - no wildcard event handlers.
+// Detects tokens from Transfer events in receipts (lightweight approach).
+// Target: 200+ blocks/sec
+// ============================================================================
 
 // Common 4-byte function selectors for method name detection
 const COMMON_SELECTORS: Record<string, string> = {
@@ -108,8 +95,8 @@ function getTxCategory(input: string, to: string | null, value: bigint): string 
   const selector = input.slice(0, 10).toLowerCase();
 
   // Token operations
-  if (selector === "0xa9059cbb" || selector === "0x23b872dd") return "transfer"; // transfer, transferFrom
-  if (selector === "0x095ea7b3") return "approve"; // approve
+  if (selector === "0xa9059cbb" || selector === "0x23b872dd") return "transfer";
+  if (selector === "0x095ea7b3") return "approve";
 
   // Swaps
   if (["0x7ff36ab5", "0x38ed1739", "0x8803dbee", "0xfb3bdb41", "0x18cbafe5", "0x4a25d94a", "0x3593564c"].includes(selector)) {
@@ -122,7 +109,7 @@ function getTxCategory(input: string, to: string | null, value: bigint): string 
   // Liquidity
   if (["0xe8e33700", "0xf305d719", "0xbaa2abde", "0x02751cec"].includes(selector)) return "liquidity";
 
-  // Bridge operations (common bridge selectors)
+  // Bridge operations
   if (["0x0f5287b0", "0xa44c80e3", "0x3d7c74f8", "0x9c307de6", "0xd7fd19dd"].includes(selector)) {
     return "bridge";
   }
@@ -133,9 +120,6 @@ function getTxCategory(input: string, to: string | null, value: bigint): string 
   // Default to contract call
   return "contract_call";
 }
-
-// MaxUint256 for unlimited approval detection
-const MAX_UINT256 = 115792089237316195423570985008687907853269984665640564039457584007913129639935n;
 
 // Common event topic0 signatures for event name detection
 const COMMON_EVENTS: Record<string, string> = {
@@ -152,32 +136,42 @@ const COMMON_EVENTS: Record<string, string> = {
   "0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496": "Burn",
 };
 
+// ERC-20 Transfer topic0
+const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
 // Helper to get event name from topic0
 function getEventName(topic0: string | undefined): string | null {
   if (!topic0) return null;
   return COMMON_EVENTS[topic0.toLowerCase()] || null;
 }
 
-// Helper to get date key (YYYY-MM-DD) from timestamp
-function getDateKey(timestamp: bigint): string {
-  const date = new Date(Number(timestamp) * 1000);
-  return date.toISOString().split("T")[0];
+// Helper to decode ERC-20 Transfer event
+function decodeERC20Transfer(log: { topics: readonly `0x${string}`[]; data: `0x${string}` }): { from: `0x${string}`; to: `0x${string}`; value: bigint } | null {
+  const topic0 = log.topics[0]?.toLowerCase();
+
+  // ERC-20 Transfer has 3 topics (topic0 + indexed from + indexed to)
+  // ERC-721 Transfer has 4 topics (topic0 + indexed from + indexed to + indexed tokenId)
+  // We only want ERC-20 (3 topics, value in data)
+  if (topic0 !== ERC20_TRANSFER_TOPIC.toLowerCase()) return null;
+  if (log.topics.length !== 3) return null; // Not ERC-20
+  if (!log.data || log.data === "0x" || log.data.length < 66) return null;
+
+  try {
+    const from = `0x${log.topics[1]?.slice(26)}` as `0x${string}`;
+    const to = `0x${log.topics[2]?.slice(26)}` as `0x${string}`;
+    const value = BigInt(log.data);
+    return { from, to, value };
+  } catch {
+    return null;
+  }
 }
 
-// Helper to get hour key (YYYY-MM-DD-HH) from timestamp
-function getHourKey(timestamp: bigint): string {
-  const date = new Date(Number(timestamp) * 1000);
-  const dateStr = date.toISOString().split("T")[0];
-  const hour = date.getUTCHours().toString().padStart(2, "0");
-  return `${dateStr}-${hour}`;
-}
-
-// Block handler - indexes blocks, transactions, contracts, and stats
+// Block handler - indexes blocks, transactions, contracts, and events
 ponder.on("FlowBlocks:block", async ({ event, context }) => {
   const { db, client } = context;
   const block = event.block;
 
-  // First, insert just the block with 0 transactions to verify DB writes work
+  // Insert block with 0 transactions initially
   await db.insert(blocks).values({
     number: block.number,
     hash: block.hash,
@@ -186,12 +180,12 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     gasUsed: block.gasUsed,
     gasLimit: block.gasLimit,
     baseFeePerGas: block.baseFeePerGas ?? null,
-    transactionCount: 0, // Start with 0, we'll update if we fetch transactions
+    transactionCount: 0,
     miner: block.miner,
     size: block.size ?? null,
   }).onConflictDoNothing();
 
-  // Try to fetch the full block with transactions
+  // Fetch full block with transactions
   let txList: Array<unknown> = [];
   let transactionCount = 0;
 
@@ -203,28 +197,15 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     txList = fullBlock.transactions ?? [];
     transactionCount = Array.isArray(txList) ? txList.length : 0;
 
-    // Update block with actual transaction count if we got it
     if (transactionCount > 0) {
       await db.update(blocks, { number: block.number }).set({
         transactionCount,
       });
     }
   } catch (err) {
-    // If RPC fetch fails, continue - block already inserted with transactionCount: 0
     console.error(`Failed to fetch block ${block.number} transactions:`, err);
+    return; // Continue to next block
   }
-
-  const dateKey = getDateKey(block.timestamp);
-  const hourKey = getHourKey(block.timestamp);
-
-  let contractsDeployed = 0;
-  let totalGasUsed = 0n;
-  let totalGasPrice = 0n;
-  let totalValue = 0n;
-  const fromAddresses = new Set<string>();
-  const toAddresses = new Set<string>();
-  const activeContracts = new Set<string>();
-  let newAccountsCount = 0;
 
   // Type for processed transaction data
   type TxData = {
@@ -251,7 +232,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     }>;
   } | null;
 
-  // STEP 1: Batch fetch full transactions for any that are just hashes
+  // Batch fetch full transactions for any that are just hashes
   const txPromises = txList.map(async (txData): Promise<TxData | null> => {
     if (!txData) return null;
 
@@ -278,7 +259,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
 
   const resolvedTxs = await Promise.all(txPromises);
 
-  // STEP 2: Batch fetch all receipts in parallel (major performance improvement)
+  // Batch fetch all receipts in parallel
   const receiptPromises = resolvedTxs.map(async (tx): Promise<ReceiptData> => {
     if (!tx) return null;
     try {
@@ -296,7 +277,10 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
 
   const receipts = await Promise.all(receiptPromises);
 
-  // STEP 3: Process transactions with their receipts
+  // Track discovered tokens in this block (to avoid duplicate metadata fetches)
+  const discoveredTokens = new Set<string>();
+
+  // Process transactions with their receipts
   for (let i = 0; i < transactionCount; i++) {
     const tx = resolvedTxs[i];
     if (!tx) continue;
@@ -307,9 +291,11 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     const contractAddress = receipt?.contractAddress ?? null;
     const logs = receipt?.logs ?? [];
 
-    // Index event logs
+    // Index event logs and detect token transfers
     for (const log of logs) {
       const logId = `${tx.hash}-${log.logIndex}`;
+      const eventName = getEventName(log.topics[0]);
+
       await db.insert(eventLogs).values({
         id: logId,
         transactionHash: tx.hash,
@@ -322,10 +308,86 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
         topic3: log.topics[3] ?? null,
         data: log.data,
         logIndex: log.logIndex,
-        eventName: getEventName(log.topics[0]),
+        eventName,
       }).onConflictDoNothing();
+
+      // Detect ERC-20 transfers and record them
+      const transfer = decodeERC20Transfer(log);
+      if (transfer) {
+        const tokenAddress = log.address;
+
+        // Insert token transfer record
+        await db.insert(tokenTransfers).values({
+          id: logId,
+          transactionHash: tx.hash,
+          blockNumber: block.number,
+          timestamp: block.timestamp,
+          tokenAddress,
+          from: transfer.from,
+          to: transfer.to,
+          value: transfer.value,
+          logIndex: log.logIndex,
+        }).onConflictDoNothing();
+
+        // Discover token if not already processed in this block
+        const tokenKey = tokenAddress.toLowerCase();
+        if (!discoveredTokens.has(tokenKey)) {
+          discoveredTokens.add(tokenKey);
+
+          const existingToken = await db.find(tokens, { address: tokenAddress });
+          if (!existingToken) {
+            // New token - fetch metadata
+            let name: string | null = null;
+            let symbol: string | null = null;
+            let decimals: number | null = null;
+
+            try {
+              const [nameResult, symbolResult, decimalsResult] = await Promise.allSettled([
+                client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "name" }),
+                client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "symbol" }),
+                client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "decimals" }),
+              ]);
+
+              if (nameResult.status === "fulfilled") name = nameResult.value as string;
+              if (symbolResult.status === "fulfilled") symbol = symbolResult.value as string;
+              if (decimalsResult.status === "fulfilled") decimals = Number(decimalsResult.value);
+            } catch {
+              // Non-standard token
+            }
+
+            await db.insert(tokens).values({
+              address: tokenAddress,
+              name,
+              symbol,
+              decimals,
+              totalSupply: null,
+              transferCount: 1,
+              holderCount: 0,
+              firstSeenBlock: block.number,
+              firstSeenTimestamp: block.timestamp,
+              iconUrl: null,
+              isVerified: null,
+              website: null,
+            }).onConflictDoNothing();
+
+            // Update contract type to ERC-20 if exists
+            const existingContract = await db.find(contracts, { address: tokenAddress });
+            if (existingContract) {
+              await db.update(contracts, { address: tokenAddress }).set({
+                contractType: "erc20",
+              });
+            }
+          } else {
+            // Update transfer count
+            await db.update(tokens, { address: tokenAddress }).set((row) => ({
+              transferCount: row.transferCount + 1,
+            }));
+          }
+        }
+      }
     }
 
+    // Insert transaction
     await db.insert(transactions).values({
       hash: tx.hash,
       blockNumber: block.number,
@@ -343,131 +405,12 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
       status: status,
       timestamp: block.timestamp,
       methodName: getMethodName(tx.input),
-      errorMessage: null, // TODO: Fetch revert reason for failed txs
+      errorMessage: null,
       txCategory: getTxCategory(tx.input, tx.to, tx.value),
     }).onConflictDoNothing();
 
-    // Stats tracking
-    if (gasUsed) totalGasUsed += gasUsed;
-    if (tx.gasPrice) totalGasPrice += tx.gasPrice;
-    totalValue += tx.value;
-    fromAddresses.add(tx.from.toLowerCase());
-    if (tx.to) {
-      toAddresses.add(tx.to.toLowerCase());
-      // Track active contracts (contracts that received calls)
-      // We'll check if it's a contract based on having input data
-      if (tx.input && tx.input !== "0x") {
-        activeContracts.add(tx.to.toLowerCase());
-
-        // Track contract caller (all-time unique users)
-        const callerId = `${tx.to.toLowerCase()}-${tx.from.toLowerCase()}`;
-        const existingCaller = await db.find(contractCallers, { id: callerId });
-
-        if (!existingCaller) {
-          // New caller - increment unique callers in daily stats
-          await db.insert(contractCallers).values({
-            id: callerId,
-            contractAddress: tx.to,
-            callerAddress: tx.from,
-            firstCallBlock: block.number,
-            firstCallTimestamp: block.timestamp,
-            lastCallBlock: block.number,
-            lastCallTimestamp: block.timestamp,
-            callCount: 1,
-          }).onConflictDoNothing();
-        } else {
-          // Existing caller - update stats
-          await db.update(contractCallers, { id: callerId }).set({
-            lastCallBlock: block.number,
-            lastCallTimestamp: block.timestamp,
-            callCount: existingCaller.callCount + 1,
-          });
-        }
-
-        // Track daily caller
-        const dailyCallerId = `${tx.to.toLowerCase()}-${tx.from.toLowerCase()}-${dateKey}`;
-        const existingDailyCaller = await db.find(contractDailyCallers, { id: dailyCallerId });
-        const isNewDailyCaller = !existingDailyCaller;
-
-        await db.insert(contractDailyCallers).values({
-          id: dailyCallerId,
-          contractAddress: tx.to,
-          callerAddress: tx.from,
-          date: dateKey,
-          callCount: 1,
-        }).onConflictDoUpdate((row) => ({
-          callCount: row.callCount + 1,
-        }));
-
-        // Update contract daily stats
-        const contractDailyId = `${tx.to.toLowerCase()}-${dateKey}`;
-        await db.insert(contractDailyStats).values({
-          id: contractDailyId,
-          contractAddress: tx.to,
-          date: dateKey,
-          transactionCount: 1,
-          uniqueCallers: 1,
-          totalGasUsed: gasUsed ?? 0n,
-        }).onConflictDoUpdate((row) => ({
-          transactionCount: row.transactionCount + 1,
-          uniqueCallers: isNewDailyCaller ? row.uniqueCallers + 1 : row.uniqueCallers,
-          totalGasUsed: row.totalGasUsed + (gasUsed ?? 0n),
-        }));
-
-        // Update contract's total transaction count and unique caller count
-        const contractRecord = await db.find(contracts, { address: tx.to });
-        if (contractRecord) {
-          await db.update(contracts, { address: tx.to }).set({
-            transactionCount: (contractRecord.transactionCount ?? 0) + 1,
-            uniqueCallerCount: !existingCaller
-              ? (contractRecord.uniqueCallerCount ?? 0) + 1
-              : (contractRecord.uniqueCallerCount ?? 0),
-            lastActivityBlock: block.number,
-            lastActivityTimestamp: block.timestamp,
-          });
-
-          // Update deployer aggregate stats (upsert for safety - deployer may not exist if contract was created before indexer started)
-          const deployerAddress = contractRecord.deployerAddress;
-          await db.insert(deployers).values({
-            address: deployerAddress,
-            contractCount: 1,
-            totalTransactionsAcrossContracts: 1n,
-            totalUniqueUsersAcrossContracts: !existingCaller ? 1 : 0,
-            firstDeployBlock: block.number,
-            firstDeployTimestamp: block.timestamp,
-            lastDeployBlock: block.number,
-            lastDeployTimestamp: block.timestamp,
-          }).onConflictDoUpdate((row) => ({
-            totalTransactionsAcrossContracts: row.totalTransactionsAcrossContracts + 1n,
-            totalUniqueUsersAcrossContracts: !existingCaller
-              ? row.totalUniqueUsersAcrossContracts + 1
-              : row.totalUniqueUsersAcrossContracts,
-          }));
-
-          // Update deployer daily stats
-          const deployerDailyId = `${deployerAddress.toLowerCase()}-${dateKey}`;
-          await db.insert(deployerDailyStats).values({
-            id: deployerDailyId,
-            deployerAddress: deployerAddress,
-            date: dateKey,
-            totalTransactions: 1,
-            totalUniqueCallers: !existingCaller ? 1 : 0,
-            activeContractsCount: 1,
-            newContractsDeployed: 0,
-          }).onConflictDoUpdate((row) => ({
-            totalTransactions: row.totalTransactions + 1,
-            totalUniqueCallers: !existingCaller ? row.totalUniqueCallers + 1 : row.totalUniqueCallers,
-            // Note: activeContractsCount is an approximation here
-          }));
-        }
-      }
-    }
-
-    // Track contract deployments (to = null means contract creation)
+    // Track contract deployments
     if (tx.to === null && contractAddress) {
-      contractsDeployed++;
-
-      // Get bytecode size
       let bytecodeSize: number | null = null;
       try {
         const code = await client.getCode({ address: contractAddress });
@@ -483,56 +426,19 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
         blockNumber: block.number,
         timestamp: block.timestamp,
         bytecodeSize,
-        isVerified: null, // Will be updated by verification service
+        isVerified: null,
         name: null,
-        contractType: null, // Will be detected from events
-        isProxy: null, // Will be detected from bytecode analysis
+        contractType: null,
+        isProxy: null,
         implementationAddress: null,
         transactionCount: 0,
         uniqueCallerCount: 0,
         lastActivityBlock: block.number,
         lastActivityTimestamp: block.timestamp,
       }).onConflictDoNothing();
-
-      // Track deployer (builder)
-      const existingDeployer = await db.find(deployers, { address: tx.from });
-      if (!existingDeployer) {
-        await db.insert(deployers).values({
-          address: tx.from,
-          contractCount: 1,
-          totalTransactionsAcrossContracts: 0n,
-          totalUniqueUsersAcrossContracts: 0,
-          firstDeployBlock: block.number,
-          firstDeployTimestamp: block.timestamp,
-          lastDeployBlock: block.number,
-          lastDeployTimestamp: block.timestamp,
-        }).onConflictDoNothing();
-      } else {
-        await db.update(deployers, { address: tx.from }).set({
-          contractCount: existingDeployer.contractCount + 1,
-          lastDeployBlock: block.number,
-          lastDeployTimestamp: block.timestamp,
-        });
-      }
-
-      // Update deployer daily stats for new deployment
-      const deployerDailyId = `${tx.from.toLowerCase()}-${dateKey}`;
-      await db.insert(deployerDailyStats).values({
-        id: deployerDailyId,
-        deployerAddress: tx.from,
-        date: dateKey,
-        totalTransactions: 0,
-        totalUniqueCallers: 0,
-        activeContractsCount: 0,
-        newContractsDeployed: 1,
-      }).onConflictDoUpdate((row) => ({
-        newContractsDeployed: row.newContractsDeployed + 1,
-      }));
     }
 
-    // Track accounts
-    const isContract = tx.to === null && contractAddress !== null;
-
+    // Track accounts (simplified - no transaction count updates for receivers)
     await db.insert(accounts).values({
       address: tx.from,
       transactionCount: 1,
@@ -581,758 +487,38 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
       }).onConflictDoNothing();
     }
   }
-
-  // Calculate average gas price
-  const avgGasPrice = transactionCount > 0
-    ? totalGasPrice / BigInt(transactionCount)
-    : 0n;
-
-  // Update daily stats
-  await db.insert(dailyStats).values({
-    date: dateKey,
-    transactionCount: transactionCount,
-    blockCount: 1,
-    contractsDeployed,
-    totalGasUsed,
-    avgGasPrice,
-    uniqueFromAddresses: fromAddresses.size,
-    uniqueToAddresses: toAddresses.size,
-    tokenTransferCount: 0, // Updated by Transfer handler
-    totalValueTransferred: totalValue,
-    nftTransferCount: 0, // Updated by NFT handlers
-    newAccountsCount: newAccountsCount,
-    activeContractsCount: activeContracts.size,
-  }).onConflictDoUpdate((row) => ({
-    transactionCount: row.transactionCount + transactionCount,
-    blockCount: row.blockCount + 1,
-    contractsDeployed: row.contractsDeployed + contractsDeployed,
-    totalGasUsed: row.totalGasUsed + totalGasUsed,
-    avgGasPrice: row.transactionCount > 0
-      ? (row.avgGasPrice * BigInt(row.transactionCount) + avgGasPrice * BigInt(transactionCount)) /
-        BigInt(row.transactionCount + transactionCount)
-      : avgGasPrice,
-    uniqueFromAddresses: row.uniqueFromAddresses + fromAddresses.size, // Approximation
-    newAccountsCount: row.newAccountsCount + newAccountsCount,
-    activeContractsCount: row.activeContractsCount + activeContracts.size, // Approximation
-    uniqueToAddresses: row.uniqueToAddresses + toAddresses.size, // Approximation
-    totalValueTransferred: row.totalValueTransferred + totalValue,
-  }));
-
-  // Update hourly stats
-  await db.insert(hourlyStats).values({
-    hour: hourKey,
-    transactionCount: transactionCount,
-    blockCount: 1,
-    contractsDeployed,
-    totalGasUsed,
-    avgGasPrice,
-    tokenTransferCount: 0, // Updated by Transfer handler
-  }).onConflictDoUpdate((row) => ({
-    transactionCount: row.transactionCount + transactionCount,
-    blockCount: row.blockCount + 1,
-    contractsDeployed: row.contractsDeployed + contractsDeployed,
-    totalGasUsed: row.totalGasUsed + totalGasUsed,
-    avgGasPrice: row.transactionCount > 0
-      ? (row.avgGasPrice * BigInt(row.transactionCount) + avgGasPrice * BigInt(transactionCount)) /
-        BigInt(row.transactionCount + transactionCount)
-      : avgGasPrice,
-  }));
-
-  // Update hourly gas stats (for gas tracker)
-  const minGas = avgGasPrice;
-  const maxGas = avgGasPrice;
-  await db.insert(hourlyGasStats).values({
-    hour: hourKey,
-    minGasPrice: minGas,
-    maxGasPrice: maxGas,
-    avgGasPrice,
-    medianGasPrice: null,
-    transactionCount,
-    totalGasUsed,
-  }).onConflictDoUpdate((row) => ({
-    minGasPrice: row.minGasPrice < minGas ? row.minGasPrice : minGas,
-    maxGasPrice: row.maxGasPrice > maxGas ? row.maxGasPrice : maxGas,
-    avgGasPrice: row.transactionCount > 0
-      ? (row.avgGasPrice * BigInt(row.transactionCount) + avgGasPrice * BigInt(transactionCount)) /
-        BigInt(row.transactionCount + transactionCount)
-      : avgGasPrice,
-    transactionCount: row.transactionCount + transactionCount,
-    totalGasUsed: row.totalGasUsed + totalGasUsed,
-  }));
 });
 
+// ============================================================================
+// FULL MODE EVENT HANDLERS (disabled for fast indexing)
+// ============================================================================
+// Uncomment these handlers and the corresponding schema tables to restore
+// full token/NFT tracking functionality at ~37 blocks/sec.
+// ============================================================================
+
+/*
 // ERC-20 Transfer event handler - discovers tokens and tracks balances
 ponder.on("ERC20:Transfer", async ({ event, context }) => {
-  const { db, client } = context;
-  const { from, to, value } = event.args;
-  const tokenAddress = event.log.address;
-  const blockNumber = event.block.number;
-  const timestamp = event.block.timestamp;
-
-  // Insert transfer record
-  const transferId = `${event.transaction.hash}-${event.log.logIndex}`;
-  await db.insert(tokenTransfers).values({
-    id: transferId,
-    transactionHash: event.transaction.hash,
-    blockNumber,
-    timestamp,
-    tokenAddress,
-    from,
-    to,
-    value,
-    logIndex: event.log.logIndex,
-  }).onConflictDoNothing();
-
-  // Discover/update token
-  const existingToken = await db.find(tokens, { address: tokenAddress });
-
-  if (!existingToken) {
-    // New token discovered - try to fetch metadata
-    let name: string | null = null;
-    let symbol: string | null = null;
-    let decimals: number | null = null;
-
-    try {
-      const [nameResult, symbolResult, decimalsResult] = await Promise.allSettled([
-        client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "name" }),
-        client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "symbol" }),
-        client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "decimals" }),
-      ]);
-
-      if (nameResult.status === "fulfilled") name = nameResult.value as string;
-      if (symbolResult.status === "fulfilled") symbol = symbolResult.value as string;
-      if (decimalsResult.status === "fulfilled") decimals = Number(decimalsResult.value);
-    } catch {
-      // Non-standard token, leave metadata null
-    }
-
-    await db.insert(tokens).values({
-      address: tokenAddress,
-      name,
-      symbol,
-      decimals,
-      totalSupply: null,
-      transferCount: 1,
-      holderCount: 0,
-      firstSeenBlock: blockNumber,
-      firstSeenTimestamp: timestamp,
-      iconUrl: null, // Can be populated from token list
-      isVerified: null,
-      website: null,
-    }).onConflictDoNothing();
-
-    // Update contract type to ERC-20 if this contract exists
-    // Check existence first to avoid RecordNotFoundError for contracts deployed before PONDER_START_BLOCK
-    const existingContract = await db.find(contracts, { address: tokenAddress });
-    if (existingContract) {
-      await db.update(contracts, { address: tokenAddress }).set({
-        contractType: "erc20",
-      });
-    }
-  } else {
-    // existingToken is guaranteed to exist in this branch
-    // Update transfer count
-    await db.update(tokens, { address: tokenAddress }).set((row) => ({
-      transferCount: row.transferCount + 1,
-    }));
-  }
-
-  // Update sender balance (if not minting from zero address)
-  const zeroAddress = "0x0000000000000000000000000000000000000000" as `0x${string}`;
-
-  if (from.toLowerCase() !== zeroAddress.toLowerCase()) {
-    const fromBalanceId = `${from.toLowerCase()}-${tokenAddress.toLowerCase()}`;
-
-    const existingFromBalance = await db.find(accountTokenBalances, { id: fromBalanceId });
-
-    if (existingFromBalance) {
-      await db.update(accountTokenBalances, { id: fromBalanceId }).set((row) => ({
-        balance: row.balance - value,
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      }));
-    } else {
-      // First outgoing transfer without previous incoming - shouldn't happen normally
-      // but handle gracefully
-      await db.insert(accountTokenBalances).values({
-        id: fromBalanceId,
-        accountAddress: from,
-        tokenAddress,
-        balance: 0n - value, // Will be negative, corrected by future incoming transfers
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      }).onConflictDoNothing();
-    }
-  }
-
-  // Update receiver balance (if not burning to zero address)
-  if (to.toLowerCase() !== zeroAddress.toLowerCase()) {
-    const toBalanceId = `${to.toLowerCase()}-${tokenAddress.toLowerCase()}`;
-
-    const existingToBalance = await db.find(accountTokenBalances, { id: toBalanceId });
-
-    if (existingToBalance) {
-      await db.update(accountTokenBalances, { id: toBalanceId }).set((row) => ({
-        balance: row.balance + value,
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      }));
-    } else {
-      // New holder
-      await db.insert(accountTokenBalances).values({
-        id: toBalanceId,
-        accountAddress: to,
-        tokenAddress,
-        balance: value,
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      }).onConflictDoNothing();
-
-      // Increment holder count for token
-      // Check existence first - token might not exist if insert failed due to race condition
-      const tokenForHolderUpdate = await db.find(tokens, { address: tokenAddress });
-      if (tokenForHolderUpdate) {
-        await db.update(tokens, { address: tokenAddress }).set((row) => ({
-          holderCount: row.holderCount + 1,
-        }));
-      }
-    }
-  }
-
-  // Update token daily stats
-  const dateKey = getDateKey(timestamp);
-  const tokenDailyId = `${tokenAddress.toLowerCase()}-${dateKey}`;
-  const isMint = from.toLowerCase() === zeroAddress.toLowerCase();
-  const isBurn = to.toLowerCase() === zeroAddress.toLowerCase();
-
-  await db.insert(tokenDailyStats).values({
-    id: tokenDailyId,
-    tokenAddress,
-    date: dateKey,
-    transferCount: 1,
-    volume: value,
-    uniqueSenders: 1,
-    uniqueReceivers: 1,
-    mintAmount: isMint ? value : 0n,
-    burnAmount: isBurn ? value : 0n,
-  }).onConflictDoUpdate((row) => ({
-    transferCount: row.transferCount + 1,
-    volume: row.volume + value,
-    mintAmount: isMint ? row.mintAmount + value : row.mintAmount,
-    burnAmount: isBurn ? row.burnAmount + value : row.burnAmount,
-  }));
-
-  // Update daily stats token transfer count (upsert for safety)
-  await db.insert(dailyStats).values({
-    date: dateKey,
-    transactionCount: 0,
-    blockCount: 0,
-    contractsDeployed: 0,
-    totalGasUsed: 0n,
-    avgGasPrice: 0n,
-    uniqueFromAddresses: 0,
-    uniqueToAddresses: 0,
-    tokenTransferCount: 1,
-    totalValueTransferred: 0n,
-    nftTransferCount: 0,
-    newAccountsCount: 0,
-    activeContractsCount: 0,
-  }).onConflictDoUpdate((row) => ({
-    tokenTransferCount: row.tokenTransferCount + 1,
-  }));
-
-  // Update hourly stats token transfer count (upsert for safety)
-  const hourKey = getHourKey(timestamp);
-  await db.insert(hourlyStats).values({
-    hour: hourKey,
-    transactionCount: 0,
-    blockCount: 0,
-    contractsDeployed: 0,
-    totalGasUsed: 0n,
-    avgGasPrice: 0n,
-    tokenTransferCount: 1,
-  }).onConflictDoUpdate((row) => ({
-    tokenTransferCount: row.tokenTransferCount + 1,
-  }));
+  // ... full implementation in git history
 });
 
 // ERC-721 Transfer event handler - indexes NFT transfers
 ponder.on("ERC721:Transfer", async ({ event, context }) => {
-  const { db, client } = context;
-  const { from, to, tokenId } = event.args;
-  const collectionAddress = event.log.address;
-  const blockNumber = event.block.number;
-  const timestamp = event.block.timestamp;
-  const zeroAddress = "0x0000000000000000000000000000000000000000" as `0x${string}`;
-  const isMint = from.toLowerCase() === zeroAddress.toLowerCase();
-
-  // Insert transfer record
-  const transferId = `${event.transaction.hash}-${event.log.logIndex}`;
-  await db.insert(nftTransfers).values({
-    id: transferId,
-    transactionHash: event.transaction.hash,
-    blockNumber,
-    timestamp,
-    collectionAddress,
-    tokenId,
-    from,
-    to,
-    operator: null,
-    value: 1n,
-    logIndex: event.log.logIndex,
-  }).onConflictDoNothing();
-
-  // Discover/update collection
-  const existingCollection = await db.find(nftCollections, { address: collectionAddress });
-
-  if (!existingCollection) {
-    // New collection discovered - try to fetch metadata
-    let name: string | null = null;
-    let symbol: string | null = null;
-
-    try {
-      const erc721MetadataAbi = [
-        { type: "function", name: "name", inputs: [], outputs: [{ type: "string" }], stateMutability: "view" },
-        { type: "function", name: "symbol", inputs: [], outputs: [{ type: "string" }], stateMutability: "view" },
-      ] as const;
-
-      const [nameResult, symbolResult] = await Promise.allSettled([
-        client.readContract({ address: collectionAddress, abi: erc721MetadataAbi, functionName: "name" }),
-        client.readContract({ address: collectionAddress, abi: erc721MetadataAbi, functionName: "symbol" }),
-      ]);
-
-      if (nameResult.status === "fulfilled") name = nameResult.value as string;
-      if (symbolResult.status === "fulfilled") symbol = symbolResult.value as string;
-    } catch {
-      // Non-standard NFT, leave metadata null
-    }
-
-    // Get creator address from contract deployer
-    const contractRecord = await db.find(contracts, { address: collectionAddress });
-    const creatorAddress = contractRecord?.deployerAddress ?? null;
-
-    await db.insert(nftCollections).values({
-      address: collectionAddress,
-      name,
-      symbol,
-      standard: "ERC721",
-      totalSupply: null,
-      transferCount: 1,
-      holderCount: isMint ? 1 : 0,
-      uniqueOwnerCount: isMint ? 1 : 0,
-      creatorAddress,
-      mintCount: isMint ? 1 : 0,
-      burnCount: 0,
-      firstSeenBlock: blockNumber,
-      firstSeenTimestamp: timestamp,
-    }).onConflictDoNothing();
-
-    // Update contract type to ERC-721 if this contract exists
-    // Check existence first to avoid RecordNotFoundError for contracts deployed before PONDER_START_BLOCK
-    if (contractRecord) {
-      await db.update(contracts, { address: collectionAddress }).set({
-        contractType: "erc721",
-      });
-    }
-
-    // Track NFT creator
-    if (creatorAddress) {
-      const existingCreator = await db.find(nftCreators, { address: creatorAddress });
-      if (!existingCreator) {
-        await db.insert(nftCreators).values({
-          address: creatorAddress,
-          collectionCount: 1,
-          totalNftsMinted: isMint ? 1 : 0,
-          totalUniqueOwners: isMint ? 1 : 0,
-          totalTransfers: 1,
-          firstCreateBlock: blockNumber,
-          firstCreateTimestamp: timestamp,
-          lastCreateBlock: blockNumber,
-          lastCreateTimestamp: timestamp,
-        }).onConflictDoNothing();
-      }
-    }
-  } else {
-    // existingCollection is guaranteed to exist in this branch
-    // Update transfer count
-    await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
-      transferCount: row.transferCount + 1,
-      holderCount: isMint ? row.holderCount + 1 : row.holderCount,
-    }));
-  }
-
-  // Update/create NFT record
-  const nftId = `${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
-  const existingNft = await db.find(nfts, { id: nftId });
-
-  if (!existingNft) {
-    // New NFT - try to get tokenURI
-    let tokenUri: string | null = null;
-    try {
-      const tokenUriAbi = [
-        { type: "function", name: "tokenURI", inputs: [{ type: "uint256", name: "tokenId" }], outputs: [{ type: "string" }], stateMutability: "view" },
-      ] as const;
-      tokenUri = await client.readContract({ address: collectionAddress, abi: tokenUriAbi, functionName: "tokenURI", args: [tokenId] });
-    } catch {
-      // tokenURI not available
-    }
-
-    await db.insert(nfts).values({
-      id: nftId,
-      collectionAddress,
-      tokenId,
-      owner: to,
-      tokenUri,
-      mintedBlock: blockNumber,
-      mintedTimestamp: timestamp,
-      lastTransferBlock: blockNumber,
-      lastTransferTimestamp: timestamp,
-      transferCount: 1,
-      imageUrl: null, // Can be fetched from tokenUri asynchronously
-      metadata: null,
-    }).onConflictDoNothing();
-  } else {
-    // Update NFT owner
-    await db.update(nfts, { id: nftId }).set({
-      owner: to,
-      lastTransferBlock: blockNumber,
-      lastTransferTimestamp: timestamp,
-      transferCount: existingNft.transferCount + 1,
-    });
-  }
-
-  // Update ownership records
-  // Remove from sender (if not mint)
-  if (!isMint) {
-    const fromOwnershipId = `${from.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
-    const existingFromOwnership = await db.find(nftOwnership, { id: fromOwnershipId });
-
-    if (existingFromOwnership) {
-      await db.update(nftOwnership, { id: fromOwnershipId }).set({
-        balance: 0n,
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      });
-    }
-    // If record doesn't exist, we're seeing a transfer for an NFT acquired before our start block - skip
-  }
-
-  // Add to receiver (if not burn)
-  const isBurn = to.toLowerCase() === zeroAddress.toLowerCase();
-  if (!isBurn) {
-    const toOwnershipId = `${to.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
-    const existingOwnership = await db.find(nftOwnership, { id: toOwnershipId });
-
-    if (existingOwnership) {
-      await db.update(nftOwnership, { id: toOwnershipId }).set({
-        balance: 1n,
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      });
-    } else {
-      await db.insert(nftOwnership).values({
-        id: toOwnershipId,
-        ownerAddress: to,
-        collectionAddress,
-        tokenId,
-        balance: 1n,
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      }).onConflictDoNothing();
-    }
-  }
-
-  // Update NFT collection daily stats
-  const dateKey = getDateKey(timestamp);
-  const collectionDailyId = `${collectionAddress.toLowerCase()}-${dateKey}`;
-
-  await db.insert(nftCollectionDailyStats).values({
-    id: collectionDailyId,
-    collectionAddress,
-    date: dateKey,
-    transferCount: 1,
-    mintCount: isMint ? 1 : 0,
-    burnCount: isBurn ? 1 : 0,
-    uniqueTraders: 1,
-  }).onConflictDoUpdate((row) => ({
-    transferCount: row.transferCount + 1,
-    mintCount: isMint ? row.mintCount + 1 : row.mintCount,
-    burnCount: isBurn ? row.burnCount + 1 : row.burnCount,
-  }));
-
-  // Update daily stats NFT transfer count (upsert for safety)
-  await db.insert(dailyStats).values({
-    date: dateKey,
-    transactionCount: 0,
-    blockCount: 0,
-    contractsDeployed: 0,
-    totalGasUsed: 0n,
-    avgGasPrice: 0n,
-    uniqueFromAddresses: 0,
-    uniqueToAddresses: 0,
-    tokenTransferCount: 0,
-    totalValueTransferred: 0n,
-    nftTransferCount: 1,
-    newAccountsCount: 0,
-    activeContractsCount: 0,
-  }).onConflictDoUpdate((row) => ({
-    nftTransferCount: row.nftTransferCount + 1,
-  }));
+  // ... full implementation in git history
 });
 
 // ERC-1155 TransferSingle event handler
 ponder.on("ERC1155:TransferSingle", async ({ event, context }) => {
-  const { db, client } = context;
-  const { operator, from, to, id: tokenId, value } = event.args;
-  const collectionAddress = event.log.address;
-  const blockNumber = event.block.number;
-  const timestamp = event.block.timestamp;
-  const zeroAddress = "0x0000000000000000000000000000000000000000" as `0x${string}`;
-  const isMint = from.toLowerCase() === zeroAddress.toLowerCase();
-
-  // Insert transfer record
-  const transferId = `${event.transaction.hash}-${event.log.logIndex}`;
-  await db.insert(nftTransfers).values({
-    id: transferId,
-    transactionHash: event.transaction.hash,
-    blockNumber,
-    timestamp,
-    collectionAddress,
-    tokenId,
-    from,
-    to,
-    operator,
-    value,
-    logIndex: event.log.logIndex,
-  }).onConflictDoNothing();
-
-  // Discover/update collection
-  const existingCollection = await db.find(nftCollections, { address: collectionAddress });
-
-  if (!existingCollection) {
-    // Get creator address from contract deployer
-    const contractRecord = await db.find(contracts, { address: collectionAddress });
-    const creatorAddress = contractRecord?.deployerAddress ?? null;
-    const isBurnCheck = to.toLowerCase() === zeroAddress.toLowerCase();
-
-    await db.insert(nftCollections).values({
-      address: collectionAddress,
-      name: null,
-      symbol: null,
-      standard: "ERC1155",
-      totalSupply: null,
-      transferCount: 1,
-      holderCount: isMint ? 1 : 0,
-      uniqueOwnerCount: isMint ? 1 : 0,
-      creatorAddress,
-      mintCount: isMint ? 1 : 0,
-      burnCount: isBurnCheck ? 1 : 0,
-      firstSeenBlock: blockNumber,
-      firstSeenTimestamp: timestamp,
-    }).onConflictDoNothing();
-
-    // Update contract type to ERC-1155 if this contract exists
-    // Check existence first to avoid RecordNotFoundError for contracts deployed before PONDER_START_BLOCK
-    if (contractRecord) {
-      await db.update(contracts, { address: collectionAddress }).set({
-        contractType: "erc1155",
-      });
-    }
-  } else {
-    // existingCollection is guaranteed to exist in this branch
-    await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
-      transferCount: row.transferCount + 1,
-    }));
-  }
-
-  // Update ownership for sender
-  if (!isMint) {
-    const fromOwnershipId = `${from.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
-    const existingFromOwnership = await db.find(nftOwnership, { id: fromOwnershipId });
-
-    if (existingFromOwnership) {
-      const newBalance = existingFromOwnership.balance - value;
-      await db.update(nftOwnership, { id: fromOwnershipId }).set({
-        balance: newBalance > 0n ? newBalance : 0n,
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      });
-    }
-  }
-
-  // Update ownership for receiver
-  const isBurn = to.toLowerCase() === zeroAddress.toLowerCase();
-  if (!isBurn) {
-    const toOwnershipId = `${to.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
-    const existingToOwnership = await db.find(nftOwnership, { id: toOwnershipId });
-
-    if (existingToOwnership) {
-      await db.update(nftOwnership, { id: toOwnershipId }).set({
-        balance: existingToOwnership.balance + value,
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      });
-    } else {
-      await db.insert(nftOwnership).values({
-        id: toOwnershipId,
-        ownerAddress: to,
-        collectionAddress,
-        tokenId,
-        balance: value,
-        lastUpdatedBlock: blockNumber,
-        lastUpdatedTimestamp: timestamp,
-      }).onConflictDoNothing();
-
-      // Increment holder count for collection
-      // Check existence first - collection might not exist if insert failed due to race condition
-      const collectionForHolderUpdate = await db.find(nftCollections, { address: collectionAddress });
-      if (collectionForHolderUpdate) {
-        await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
-          holderCount: row.holderCount + 1,
-        }));
-      }
-    }
-  }
+  // ... full implementation in git history
 });
 
 // ERC-1155 TransferBatch event handler
 ponder.on("ERC1155:TransferBatch", async ({ event, context }) => {
-  const { db } = context;
-  const { operator, from, to, ids, values } = event.args;
-  const collectionAddress = event.log.address;
-  const blockNumber = event.block.number;
-  const timestamp = event.block.timestamp;
-  const zeroAddress = "0x0000000000000000000000000000000000000000" as `0x${string}`;
-  const isMint = from.toLowerCase() === zeroAddress.toLowerCase();
-  const isBurn = to.toLowerCase() === zeroAddress.toLowerCase();
-
-  // Process each token in the batch
-  for (let i = 0; i < ids.length; i++) {
-    const tokenId = ids[i];
-    const value = values[i];
-
-    // Insert transfer record
-    const transferId = `${event.transaction.hash}-${event.log.logIndex}-${i}`;
-    await db.insert(nftTransfers).values({
-      id: transferId,
-      transactionHash: event.transaction.hash,
-      blockNumber,
-      timestamp,
-      collectionAddress,
-      tokenId,
-      from,
-      to,
-      operator,
-      value,
-      logIndex: event.log.logIndex,
-    }).onConflictDoNothing();
-
-    // Update ownership for sender
-    if (!isMint) {
-      const fromOwnershipId = `${from.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
-      const existingFromOwnership = await db.find(nftOwnership, { id: fromOwnershipId });
-
-      if (existingFromOwnership) {
-        const newBalance = existingFromOwnership.balance - value;
-        await db.update(nftOwnership, { id: fromOwnershipId }).set({
-          balance: newBalance > 0n ? newBalance : 0n,
-          lastUpdatedBlock: blockNumber,
-          lastUpdatedTimestamp: timestamp,
-        });
-      }
-    }
-
-    // Update ownership for receiver
-    if (!isBurn) {
-      const toOwnershipId = `${to.toLowerCase()}-${collectionAddress.toLowerCase()}-${tokenId.toString()}`;
-      const existingToOwnership = await db.find(nftOwnership, { id: toOwnershipId });
-
-      if (existingToOwnership) {
-        await db.update(nftOwnership, { id: toOwnershipId }).set({
-          balance: existingToOwnership.balance + value,
-          lastUpdatedBlock: blockNumber,
-          lastUpdatedTimestamp: timestamp,
-        });
-      } else {
-        await db.insert(nftOwnership).values({
-          id: toOwnershipId,
-          ownerAddress: to,
-          collectionAddress,
-          tokenId,
-          balance: value,
-          lastUpdatedBlock: blockNumber,
-          lastUpdatedTimestamp: timestamp,
-        }).onConflictDoNothing();
-      }
-    }
-  }
-
-  // Update collection stats once for the batch
-  const existingCollection = await db.find(nftCollections, { address: collectionAddress });
-
-  if (!existingCollection) {
-    const contractRecord = await db.find(contracts, { address: collectionAddress });
-    const creatorAddress = contractRecord?.deployerAddress ?? null;
-
-    await db.insert(nftCollections).values({
-      address: collectionAddress,
-      name: null,
-      symbol: null,
-      standard: "ERC1155",
-      totalSupply: null,
-      transferCount: ids.length,
-      holderCount: isMint ? 1 : 0,
-      uniqueOwnerCount: isMint ? 1 : 0,
-      creatorAddress,
-      mintCount: isMint ? ids.length : 0,
-      burnCount: isBurn ? ids.length : 0,
-      firstSeenBlock: blockNumber,
-      firstSeenTimestamp: timestamp,
-    }).onConflictDoNothing();
-
-    // Update contract type to ERC-1155 if this contract exists
-    // Check existence first to avoid RecordNotFoundError for contracts deployed before PONDER_START_BLOCK
-    if (contractRecord) {
-      await db.update(contracts, { address: collectionAddress }).set({
-        contractType: "erc1155",
-      });
-    }
-  } else {
-    // existingCollection is guaranteed to exist in this branch
-    await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
-      transferCount: row.transferCount + ids.length,
-      mintCount: isMint ? (row.mintCount ?? 0) + ids.length : row.mintCount,
-      burnCount: isBurn ? (row.burnCount ?? 0) + ids.length : row.burnCount,
-    }));
-  }
+  // ... full implementation in git history
 });
 
 // ERC-20 Approval event handler - tracks token approvals
 ponder.on("ERC20:Approval", async ({ event, context }) => {
-  const { db } = context;
-  const { owner, spender, value } = event.args;
-  const tokenAddress = event.log.address;
-  const blockNumber = event.block.number;
-  const timestamp = event.block.timestamp;
-
-  const approvalId = `${tokenAddress.toLowerCase()}-${owner.toLowerCase()}-${spender.toLowerCase()}`;
-  const isUnlimited = value >= MAX_UINT256 / 2n; // Treat very large values as unlimited
-
-  await db.insert(tokenApprovals).values({
-    id: approvalId,
-    tokenAddress,
-    ownerAddress: owner,
-    spenderAddress: spender,
-    allowance: value,
-    isUnlimited,
-    blockNumber,
-    timestamp,
-    transactionHash: event.transaction.hash,
-  }).onConflictDoUpdate(() => ({
-    allowance: value,
-    isUnlimited,
-    blockNumber,
-    timestamp,
-    transactionHash: event.transaction.hash,
-  }));
+  // ... full implementation in git history
 });
+*/

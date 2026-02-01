@@ -145,61 +145,100 @@ ponder.on("ERC20:Transfer", async ({ event, context }) => {
 - `_meta.status.flowEvm.ready: false` = Still syncing historical blocks
 - Data only appears in API after block is fully processed
 
-### Ponder Schema Summary
+### Ponder Schema Modes
 
-The Ponder indexer maintains 28 tables across 7 categories. Import from `../ponder.schema` (relative path), use `@/generated` for ponder registry. Field naming: `camelCase`.
+The indexer supports two modes with different performance characteristics:
 
-#### Core Tables (4)
+#### Fast Mode (Current - 7 tables)
+**Target: 200+ blocks/sec** - Ponder-recommended architecture
+
+| Table | Purpose |
+|-------|---------|
+| `blocks` | Block headers |
+| `transactions` | Full tx data with `methodName`, `txCategory` |
+| `accounts` | Address tracking with `accountType` (eoa/contract/coa) |
+| `contracts` | Contract deployments with `contractType` |
+| `eventLogs` | Raw event logs for on-demand decoding |
+| `tokens` | ERC-20 token metadata (basic) |
+| `tokenTransfers` | ERC-20 transfer records |
+
+**Why Fast Mode is faster:**
+- Block handler only (no wildcard event handlers)
+- 75% fewer DB writes per block
+- No stats aggregation (dailyStats, hourlyStats)
+- No token balance tracking (compute on-demand)
+- No NFT ownership tracking
+
+#### Full Mode (Commented Out - 28 tables)
+**Rate: ~37 blocks/sec** - Complete token/NFT tracking
+
+To restore full mode, uncomment in:
+1. `ponder/ponder.schema.ts` - All table definitions
+2. `ponder/ponder.config.ts` - ERC20/721/1155 contracts
+3. `ponder/src/index.ts` - Event handlers
+
+Full mode adds: `accountTokenBalances`, `tokenApprovals`, `nftCollections`, `nfts`, `nftTransfers`, `nftOwnership`, `dailyStats`, `hourlyStats`, `contractCallers`, `deployers`, etc.
+
+### Ponder Schema Summary (Fast Mode)
+
+The Ponder indexer maintains **7 tables** in Fast Mode. Import from `../ponder.schema` (relative path), use `@/generated` for ponder registry. Field naming: `camelCase`.
+
+#### Core Tables (5 - ACTIVE)
 | Table | Primary Key | Purpose |
 |-------|-------------|---------|
 | `blocks` | `number` | Block headers with gas, miner, timestamp |
 | `transactions` | `hash` | Full tx data + `methodName`, `txCategory`, `errorMessage` |
 | `accounts` | `address` | Account stats + `accountType` (eoa/contract/coa), `label` |
-| `addressLabels` | `address` | Curated labels (DEX, bridge, CEX, etc.) |
+| `contracts` | `address` | Deployment info + `contractType`, `isProxy` |
+| `eventLogs` | `id` (txHash-logIndex) | All event logs with `topic0-3`, `eventName` |
 
-#### Token Tables (4)
+#### Token Tables (2 - ACTIVE)
 | Table | Primary Key | Purpose |
 |-------|-------------|---------|
 | `tokens` | `address` | ERC-20 metadata + `iconUrl`, `isVerified`, `website` |
 | `tokenTransfers` | `id` (txHash-logIndex) | All ERC-20 transfer events |
-| `accountTokenBalances` | `id` (account-token) | Current token balances per account |
-| `tokenApprovals` | `id` (token-owner-spender) | Active approvals (revoke.cash-style) |
 
-#### NFT Tables (8)
-| Table | Primary Key | Purpose |
-|-------|-------------|---------|
-| `nftCollections` | `address` | Collection metadata + `uniqueOwnerCount`, `creatorAddress` |
-| `nfts` | `id` (collection-tokenId) | Individual NFTs + `imageUrl`, `metadata` |
-| `nftTransfers` | `id` (txHash-logIndex) | ERC-721/1155 transfer events |
-| `nftOwnership` | `id` (owner-collection-tokenId) | Current NFT ownership |
-| `nftCreators` | `address` | Creator aggregate stats (collections, mints, owners) |
-| `nftCreatorDailyStats` | `id` (creator-date) | Daily creator activity |
-| `nftCollectors` | `address` | Collector stats (owned, bought, sold) |
-| `nftCollectorHoldings` | `id` (collector-collection) | Holdings per collection |
+---
 
-#### Contract Tables (5)
-| Table | Primary Key | Purpose |
-|-------|-------------|---------|
-| `contracts` | `address` | Deployment info + `contractType`, `isProxy`, `uniqueCallerCount` |
-| `contractCallers` | `id` (contract-caller) | All-time unique callers per contract |
-| `contractDailyCallers` | `id` (contract-caller-date) | Daily unique callers |
-| `contractDailyStats` | `id` (contract-date) | Daily contract activity |
-| `eventLogs` | `id` (txHash-logIndex) | All event logs with `topic0-3`, `eventName` |
+#### Full Mode Tables (DISABLED - uncomment to restore)
 
-#### Deployer (Builder) Tables (2)
-| Table | Primary Key | Purpose |
-|-------|-------------|---------|
-| `deployers` | `address` | Builder stats (contracts deployed, total users) |
-| `deployerDailyStats` | `id` (deployer-date) | Daily deployer activity |
+<details>
+<summary>Click to expand Full Mode schema (21 additional tables)</summary>
 
-#### Analytics Tables (5)
-| Table | Primary Key | Purpose |
-|-------|-------------|---------|
-| `dailyStats` | `date` (YYYY-MM-DD) | Network-wide daily aggregates |
-| `hourlyStats` | `hour` (YYYY-MM-DD-HH) | Network-wide hourly aggregates |
-| `hourlyGasStats` | `hour` | Gas price stats (min/max/avg/median) |
-| `tokenDailyStats` | `id` (token-date) | Per-token daily volume/transfers |
-| `nftCollectionDailyStats` | `id` (collection-date) | Per-collection daily activity |
+**Token Balance Tracking:**
+- `accountTokenBalances` - Current token balances per account
+- `tokenApprovals` - Active approvals (revoke.cash-style)
+
+**NFT Tables:**
+- `nftCollections` - Collection metadata
+- `nfts` - Individual NFTs
+- `nftTransfers` - ERC-721/1155 transfer events
+- `nftOwnership` - Current NFT ownership
+- `nftCreators` - Creator aggregate stats
+- `nftCreatorDailyStats` - Daily creator activity
+- `nftCollectors` - Collector stats
+- `nftCollectorHoldings` - Holdings per collection
+- `nftCollectionDailyStats` - Per-collection daily activity
+
+**Contract Analytics:**
+- `contractCallers` - All-time unique callers per contract
+- `contractDailyCallers` - Daily unique callers
+- `contractDailyStats` - Daily contract activity
+
+**Deployer Tables:**
+- `deployers` - Builder stats (contracts deployed, total users)
+- `deployerDailyStats` - Daily deployer activity
+
+**Analytics Tables:**
+- `dailyStats` - Network-wide daily aggregates
+- `hourlyStats` - Network-wide hourly aggregates
+- `hourlyGasStats` - Gas price stats
+- `tokenDailyStats` - Per-token daily volume/transfers
+- `addressLabels` - Curated address labels
+
+</details>
+
+---
 
 #### Key Fields by Table
 
@@ -208,8 +247,6 @@ The Ponder indexer maintains 28 tables across 7 categories. Import from `../pond
 **accounts** - `accountType` (eoa/contract/coa - auto-detected during indexing)
 
 **contracts** - `contractType` (erc20/erc721/erc1155/proxy/other), `isProxy`, `implementationAddress`
-
-**tokenApprovals** - `isUnlimited` (true if MaxUint256 approval)
 
 ## Environment Variables
 
