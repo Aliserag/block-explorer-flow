@@ -1,37 +1,72 @@
 import { createConfig } from "@ponder/core";
-import { http } from "viem";
+import { http, fallback } from "viem";
 
 // ============================================================================
-// FAST MODE CONFIG
+// OPTIMIZED PONDER CONFIG FOR HIGH-THROUGHPUT INDEXING
 // ============================================================================
-// Ponder-recommended architecture: block handler only, no wildcard event indexing.
-// This provides 5-10x faster indexing by avoiding chain-wide event filtering.
+// Based on Ponder best practices and Flow EVM infrastructure analysis.
+//
+// Key optimizations:
+// 1. High-throughput RPC endpoint (5000 req/sec vs ~100 req/sec public)
+// 2. Aggressive batching for historical sync
+// 3. Ponder's built-in rate limiter (maxRequestsPerSecond)
+// 4. Fallback transport for high availability
 // ============================================================================
 
-// Start block: 0 for full history, or set PONDER_START_BLOCK for faster dev sync
 const startBlock = process.env.PONDER_START_BLOCK
   ? Number(process.env.PONDER_START_BLOCK)
   : 0;
 
+// RPC Endpoints - use high-throughput private endpoint as primary
+const PRIMARY_RPC = process.env.FLOW_EVM_RPC_URL_PRIMARY
+  ?? process.env.FLOW_EVM_RPC_URL
+  ?? "http://evm-001.mainnet0.nodes.onflow.org:8000/";
+const FALLBACK_RPC = process.env.FLOW_EVM_RPC_URL_FALLBACK
+  ?? "https://mainnet.evm.nodes.onflow.org";
+
+// Transport options optimized for high-throughput endpoint (~5000 req/sec)
+const highThroughputOptions = {
+  batch: {
+    batchSize: 500,     // Increased from 100 - group more calls per batch
+    wait: 20,           // Decreased from 50ms - dispatch batches faster
+  },
+  retryCount: 5,        // Reduced from 10 - private endpoint is reliable
+  retryDelay: 500,      // Reduced from 2000ms - faster error recovery
+  timeout: 30000,       // Reduced from 60s - 30s is sufficient
+};
+
+// Conservative options for public fallback endpoint
+const fallbackOptions = {
+  batch: {
+    batchSize: 100,     // Keep smaller for public endpoint
+    wait: 50,           // Standard wait
+  },
+  retryCount: 10,       // More retries for less reliable endpoint
+  retryDelay: 2000,     // Longer delays
+  timeout: 60000,       // Longer timeout
+};
+
 export default createConfig({
-  // Database: Uses DATABASE_URL for PostgreSQL in production, PGlite locally
+  // Database: PostgreSQL in production with increased connection pool
   database: process.env.DATABASE_URL
-    ? { kind: "postgres", connectionString: process.env.DATABASE_URL }
+    ? {
+        kind: "postgres",
+        connectionString: process.env.DATABASE_URL,
+        poolConfig: { max: 50 }, // Increased from default 30
+      }
     : undefined,
 
   networks: {
     flowEvm: {
       chainId: 747,
-      transport: http(process.env.FLOW_EVM_RPC_URL ?? "https://mainnet.evm.nodes.onflow.org", {
-        batch: {
-          batchSize: 100,    // Batch up to 100 RPC calls together
-          wait: 50,          // Wait 50ms to collect calls for batching
-        },
-        retryCount: 10,      // Increased for better resilience
-        retryDelay: 2000,    // Increased for exponential backoff
-        timeout: 60000,      // 60 second timeout
-      }),
-      pollingInterval: 2000,  // Increase from 1000ms to 2000ms for stability
+      // Fallback transport: tries primary first, falls back to public if needed
+      transport: fallback([
+        http(PRIMARY_RPC, highThroughputOptions),
+        http(FALLBACK_RPC, fallbackOptions),
+      ]),
+      // Ponder's built-in rate limiter - use 80% of available capacity
+      maxRequestsPerSecond: 4000,  // Leave headroom below 5000 limit
+      pollingInterval: 1000,       // Reduced from 2000ms - faster realtime updates
     },
   },
 
@@ -47,97 +82,8 @@ export default createConfig({
   // ============================================================================
   // WILDCARD EVENT INDEXING (DISABLED for fast mode)
   // ============================================================================
-  // Uncomment to enable full token/NFT tracking at ~37 blocks/sec.
-  // Also uncomment the corresponding tables in ponder.schema.ts and
-  // handlers in src/index.ts.
+  // NOT RECOMMENDED by Ponder for chain-wide indexing - these use eth_getLogs
+  // across ALL contracts which is extremely slow.
+  // Token detection is handled in the block handler via receipt logs instead.
   // ============================================================================
-  /*
-  contracts: {
-    // Wildcard ERC-20 indexing - catches ALL Transfer and Approval events
-    ERC20: {
-      network: "flowEvm",
-      abi: erc20Abi,
-      startBlock,
-    },
-    // Wildcard ERC-721 indexing - catches ALL NFT Transfer events
-    ERC721: {
-      network: "flowEvm",
-      abi: erc721TransferAbi,
-      startBlock,
-    },
-    // Wildcard ERC-1155 indexing - catches ALL multi-token transfers
-    ERC1155: {
-      network: "flowEvm",
-      abi: erc1155Abi,
-      startBlock,
-    },
-  },
-  */
 });
-
-// ============================================================================
-// ABI DEFINITIONS (kept for reference when re-enabling full mode)
-// ============================================================================
-
-/*
-// ERC-20 ABI - Transfer and Approval events
-const erc20Abi = [
-  {
-    type: "event",
-    name: "Transfer",
-    inputs: [
-      { indexed: true, name: "from", type: "address" },
-      { indexed: true, name: "to", type: "address" },
-      { indexed: false, name: "value", type: "uint256" },
-    ],
-  },
-  {
-    type: "event",
-    name: "Approval",
-    inputs: [
-      { indexed: true, name: "owner", type: "address" },
-      { indexed: true, name: "spender", type: "address" },
-      { indexed: false, name: "value", type: "uint256" },
-    ],
-  },
-] as const;
-
-// ERC-721 ABI - Transfer event with tokenId
-const erc721TransferAbi = [
-  {
-    type: "event",
-    name: "Transfer",
-    inputs: [
-      { indexed: true, name: "from", type: "address" },
-      { indexed: true, name: "to", type: "address" },
-      { indexed: true, name: "tokenId", type: "uint256" },
-    ],
-  },
-] as const;
-
-// ERC-1155 ABI - TransferSingle and TransferBatch events
-const erc1155Abi = [
-  {
-    type: "event",
-    name: "TransferSingle",
-    inputs: [
-      { indexed: true, name: "operator", type: "address" },
-      { indexed: true, name: "from", type: "address" },
-      { indexed: true, name: "to", type: "address" },
-      { indexed: false, name: "id", type: "uint256" },
-      { indexed: false, name: "value", type: "uint256" },
-    ],
-  },
-  {
-    type: "event",
-    name: "TransferBatch",
-    inputs: [
-      { indexed: true, name: "operator", type: "address" },
-      { indexed: true, name: "from", type: "address" },
-      { indexed: true, name: "to", type: "address" },
-      { indexed: false, name: "ids", type: "uint256[]" },
-      { indexed: false, name: "values", type: "uint256[]" },
-    ],
-  },
-] as const;
-*/
