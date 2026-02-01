@@ -5,11 +5,8 @@ import schema from "ponder:schema";
 
 const app = new Hono();
 
-// GraphQL API at /graphql (standard endpoint)
+// GraphQL API at /graphql
 app.use("/graphql", graphql({ db, schema }));
-
-// Health check endpoint
-app.get("/health", (c) => c.json({ status: "ok" }));
 
 // Redirect root to GraphQL for convenience
 app.get("/", (c) => c.redirect("/graphql"));
