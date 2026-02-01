@@ -1,5 +1,4 @@
 import { createConfig } from "ponder";
-import { http } from "viem";
 
 // ERC-20 ABI - only Transfer event needed
 const erc20TransferAbi = [
@@ -59,42 +58,46 @@ const startBlock = process.env.PONDER_START_BLOCK
   : 0;
 
 export default createConfig({
-  // Database: Uses DATABASE_URL for PostgreSQL in production, PGlite locally
-  database: process.env.DATABASE_URL
-    ? { kind: "postgres", connectionString: process.env.DATABASE_URL }
-    : undefined,
+  // Database: Uses DATABASE_URL for PostgreSQL in production
+  database: {
+    kind: "postgres",
+    connectionString: process.env.DATABASE_URL!,
+  },
 
-  networks: {
+  // Ponder 0.16+ uses "chains" instead of "networks"
+  chains: {
     flowEvm: {
-      chainId: 747,
-      transport: http(process.env.FLOW_EVM_RPC_URL ?? "https://mainnet.evm.nodes.onflow.org"),
-      // Increase polling for faster sync
-      pollingInterval: 1000,
+      id: 747,
+      rpc: process.env.FLOW_EVM_RPC_URL ?? "https://mainnet.evm.nodes.onflow.org",
     },
   },
+
+  // Block handler - uses "chain" instead of "network"
   blocks: {
     FlowBlocks: {
-      network: "flowEvm",
+      chain: "flowEvm",
       startBlock,
       interval: 1,
     },
   },
+
+  // Contract handlers - use "chain" instead of "network"
   contracts: {
     // Wildcard ERC-20 indexing - catches ALL Transfer events
     ERC20: {
-      network: "flowEvm",
+      chain: "flowEvm",
       abi: erc20TransferAbi,
       startBlock,
     },
     // Wildcard ERC-721 indexing - catches ALL NFT Transfer events
     ERC721: {
-      network: "flowEvm",
+      chain: "flowEvm",
       abi: erc721TransferAbi,
       startBlock,
     },
     // Wildcard ERC-1155 indexing - catches ALL multi-token transfers
     ERC1155: {
-      network: "flowEvm",
+      chain: "flowEvm",
       abi: erc1155Abi,
       startBlock,
     },
