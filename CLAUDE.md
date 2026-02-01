@@ -145,6 +145,40 @@ ponder.on("ERC20:Transfer", async ({ event, context }) => {
 - `_meta.status.flowEvm.ready: false` = Still syncing historical blocks
 - Data only appears in API after block is fully processed
 
+**5. Context Client Limitations**
+
+Ponder's `context.client` is a **limited wrapper**, NOT a full viem PublicClient. It only exposes 6 methods:
+
+| Method | Available | Use Case |
+|--------|-----------|----------|
+| `readContract()` | ✅ Yes | Read view/pure contract functions |
+| `getCode()` | ✅ Yes | Get contract bytecode |
+| `getBalance()` | ✅ Yes | Get account ETH balance |
+| `getStorageAt()` | ✅ Yes | Read raw storage slots |
+| `multicall()` | ✅ Yes | Batch contract reads |
+| `getEnsName()` | ✅ Yes | Resolve ENS names |
+| `getBlock()` | ❌ No | Use standalone viem client |
+| `getTransaction()` | ❌ No | Use standalone viem client |
+| `getTransactionReceipt()` | ❌ No | Use standalone viem client |
+| `request()` | ❌ No | Use standalone viem client |
+
+**Pattern for unsupported methods** (see `ponder/src/index.ts`):
+```typescript
+import { createPublicClient, http } from "viem";
+
+// Standalone client for methods Ponder doesn't expose
+const viemClient = createPublicClient({
+  transport: http(process.env.FLOW_EVM_RPC_URL),
+});
+
+// Use viemClient for getBlock, getTransaction, etc.
+const block = await viemClient.getBlock({ blockNumber: n });
+
+// Use context.client for supported methods
+const code = await client.getCode({ address });
+const name = await client.readContract({ abi, address, functionName: "name" });
+```
+
 ### Ponder Schema Modes
 
 The indexer supports two modes with different performance characteristics:
