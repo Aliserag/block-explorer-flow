@@ -8,7 +8,21 @@ import {
   tokens,
   tokenTransfers,
 } from "../ponder.schema";
-import { erc20Abi } from "viem";
+import { erc20Abi, createPublicClient, http } from "viem";
+
+// Create a standalone viem client for operations not supported by Ponder's context.client
+const rpcUrl = process.env.FLOW_EVM_RPC_URL_PRIMARY
+  ?? process.env.FLOW_EVM_RPC_URL
+  ?? "https://mainnet.evm.nodes.onflow.org";
+
+const viemClient = createPublicClient({
+  transport: http(rpcUrl, {
+    batch: { batchSize: 100, wait: 20 },
+    retryCount: 5,
+    retryDelay: 500,
+    timeout: 30000,
+  }),
+});
 
 // ============================================================================
 // FAST MODE INDEXER (Optimized for Flow EVM)
@@ -187,12 +201,13 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     size: block.size ?? null,
   }).onConflictDoNothing();
 
-  // Fetch full block with transactions
+  // Fetch full block with transactions using standalone viem client
+  // (Ponder's context.client doesn't expose getBlock)
   let txList: Array<unknown> = [];
   let transactionCount = 0;
 
   try {
-    const fullBlock = await client.getBlock({
+    const fullBlock = await viemClient.getBlock({
       blockNumber: block.number,
       includeTransactions: true,
     });
@@ -235,12 +250,13 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
   } | null;
 
   // Batch fetch full transactions for any that are just hashes
+  // Using viemClient because Ponder's context.client doesn't expose getTransaction
   const txPromises = txList.map(async (txData): Promise<TxData | null> => {
     if (!txData) return null;
 
     if (typeof txData === "string") {
       try {
-        const fullTx = await client.getTransaction({ hash: txData as `0x${string}` });
+        const fullTx = await viemClient.getTransaction({ hash: txData as `0x${string}` });
         return {
           hash: fullTx.hash,
           from: fullTx.from,
@@ -283,8 +299,9 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
   const receiptsMap = new Map<string, ReceiptData>();
 
   try {
-    // Single RPC call for all receipts in block
-    const blockReceipts = await client.request({
+    // Single RPC call for all receipts in block using viemClient
+    // (Ponder's context.client may not support arbitrary RPC methods)
+    const blockReceipts = await viemClient.request({
       method: "eth_getBlockReceipts" as "eth_getTransactionReceipt",
       params: [`0x${block.number.toString(16)}`] as unknown as [hash: `0x${string}`],
     }) as unknown as BlockReceiptResult[] | null;
@@ -310,7 +327,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     const receiptPromises = resolvedTxs.map(async (tx): Promise<[string, ReceiptData]> => {
       if (!tx) return ["", null];
       try {
-        const receipt = await client.getTransactionReceipt({ hash: tx.hash });
+        const receipt = await viemClient.getTransactionReceipt({ hash: tx.hash });
         return [tx.hash.toLowerCase(), {
           gasUsed: receipt.gasUsed,
           status: receipt.status === "success" ? 1 : 0,
@@ -464,6 +481,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     if (tx.to === null && contractAddress) {
       let bytecodeSize: number | null = null;
       try {
+        // Use context.client.getCode (one of the 6 supported Ponder client methods)
         const code = await client.getCode({ address: contractAddress });
         if (code) bytecodeSize = code.length;
       } catch {
