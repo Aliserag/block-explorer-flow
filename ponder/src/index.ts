@@ -11,11 +11,13 @@ import {
 import { erc20Abi } from "viem";
 
 // ============================================================================
-// FAST MODE INDEXER
+// FAST MODE INDEXER (Optimized for Flow EVM)
 // ============================================================================
-// Block handler only - no wildcard event handlers.
-// Detects tokens from Transfer events in receipts (lightweight approach).
-// Target: 200+ blocks/sec
+// Ponder-recommended architecture:
+// - Block handler only (no wildcard event handlers)
+// - Uses eth_getBlockReceipts for single RPC call per block (10-100x faster)
+// - Detects tokens from Transfer events in receipts (lightweight approach)
+// - Target: 50-100 blocks/sec (block handler inherently slower than event indexing)
 // ============================================================================
 
 // Common 4-byte function selectors for method name detection
@@ -259,23 +261,71 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
 
   const resolvedTxs = await Promise.all(txPromises);
 
-  // Batch fetch all receipts in parallel
-  const receiptPromises = resolvedTxs.map(async (tx): Promise<ReceiptData> => {
-    if (!tx) return null;
-    try {
-      const receipt = await client.getTransactionReceipt({ hash: tx.hash });
-      return {
-        gasUsed: receipt.gasUsed,
-        status: receipt.status === "success" ? 1 : 0,
-        contractAddress: receipt.contractAddress ?? null,
-        logs: receipt.logs ?? [],
-      };
-    } catch {
-      return null;
-    }
-  });
+  // ============================================================================
+  // OPTIMIZED: Fetch ALL receipts in a SINGLE RPC call using eth_getBlockReceipts
+  // This reduces N receipt calls to 1 call per block (10-100x improvement)
+  // ============================================================================
 
-  const receipts = await Promise.all(receiptPromises);
+  type BlockReceiptResult = {
+    transactionHash: `0x${string}`;
+    transactionIndex: `0x${string}`;
+    gasUsed: `0x${string}`;
+    status: `0x${string}`;
+    contractAddress: `0x${string}` | null;
+    logs: Array<{
+      address: `0x${string}`;
+      topics: `0x${string}`[];
+      data: `0x${string}`;
+      logIndex: `0x${string}`;
+    }>;
+  };
+
+  const receiptsMap = new Map<string, ReceiptData>();
+
+  try {
+    // Single RPC call for all receipts in block
+    const blockReceipts = await client.request({
+      method: "eth_getBlockReceipts" as "eth_getTransactionReceipt",
+      params: [`0x${block.number.toString(16)}`] as unknown as [hash: `0x${string}`],
+    }) as unknown as BlockReceiptResult[] | null;
+
+    if (blockReceipts) {
+      for (const receipt of blockReceipts) {
+        receiptsMap.set(receipt.transactionHash.toLowerCase(), {
+          gasUsed: BigInt(receipt.gasUsed),
+          status: receipt.status === "0x1" ? 1 : 0,
+          contractAddress: receipt.contractAddress ?? null,
+          logs: receipt.logs.map((log) => ({
+            address: log.address,
+            topics: log.topics as readonly `0x${string}`[],
+            data: log.data,
+            logIndex: parseInt(log.logIndex, 16),
+          })),
+        });
+      }
+    }
+  } catch (err) {
+    // Fallback to individual receipt fetches if eth_getBlockReceipts fails
+    console.warn(`eth_getBlockReceipts failed for block ${block.number}, falling back:`, err);
+    const receiptPromises = resolvedTxs.map(async (tx): Promise<[string, ReceiptData]> => {
+      if (!tx) return ["", null];
+      try {
+        const receipt = await client.getTransactionReceipt({ hash: tx.hash });
+        return [tx.hash.toLowerCase(), {
+          gasUsed: receipt.gasUsed,
+          status: receipt.status === "success" ? 1 : 0,
+          contractAddress: receipt.contractAddress ?? null,
+          logs: receipt.logs ?? [],
+        }];
+      } catch {
+        return [tx.hash.toLowerCase(), null];
+      }
+    });
+    const results = await Promise.all(receiptPromises);
+    for (const [hash, receipt] of results) {
+      if (hash) receiptsMap.set(hash, receipt);
+    }
+  }
 
   // Track discovered tokens in this block (to avoid duplicate metadata fetches)
   const discoveredTokens = new Set<string>();
@@ -285,7 +335,8 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     const tx = resolvedTxs[i];
     if (!tx) continue;
 
-    const receipt = receipts[i];
+    // Get receipt from map (keyed by lowercase tx hash)
+    const receipt = receiptsMap.get(tx.hash.toLowerCase());
     const gasUsed = receipt?.gasUsed ?? null;
     const status = receipt?.status ?? null;
     const contractAddress = receipt?.contractAddress ?? null;
