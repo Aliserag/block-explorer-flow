@@ -1,4 +1,4 @@
-import { onchainTable, index } from "@ponder/core";
+import { onchainTable, index } from "ponder";
 
 // ============================================================================
 // FAST MODE SCHEMA (7 tables)
