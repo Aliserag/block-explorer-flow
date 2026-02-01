@@ -29,7 +29,7 @@ import {
   nftCollectors,
   nftCollectorHoldings,
 } from "../ponder.schema";
-import { createPublicClient, http, erc20Abi } from "viem";
+import { erc20Abi } from "viem";
 
 // Common 4-byte function selectors for method name detection
 const COMMON_SELECTORS: Record<string, string> = {
@@ -158,12 +158,6 @@ function getEventName(topic0: string | undefined): string | null {
   return COMMON_EVENTS[topic0.toLowerCase()] || null;
 }
 
-// Create a dedicated viem client for fetching block data with transactions
-// Ponder's context.client doesn't expose getBlock/getTransaction methods
-const rpcClient = createPublicClient({
-  transport: http(process.env.FLOW_EVM_RPC_URL ?? "https://mainnet.evm.nodes.onflow.org"),
-});
-
 // Helper to get date key (YYYY-MM-DD) from timestamp
 function getDateKey(timestamp: bigint): string {
   const date = new Date(Number(timestamp) * 1000);
@@ -180,7 +174,7 @@ function getHourKey(timestamp: bigint): string {
 
 // Block handler - indexes blocks, transactions, contracts, and stats
 ponder.on("FlowBlocks:block", async ({ event, context }) => {
-  const { db } = context;
+  const { db, client } = context;
   const block = event.block;
 
   // First, insert just the block with 0 transactions to verify DB writes work
@@ -202,7 +196,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
   let transactionCount = 0;
 
   try {
-    const fullBlock = await rpcClient.getBlock({
+    const fullBlock = await client.getBlock({
       blockNumber: block.number,
       includeTransactions: true,
     });
@@ -253,7 +247,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     if (typeof txData === "string") {
       // txData is just a hash, fetch full transaction
       try {
-        const fullTx = await rpcClient.getTransaction({ hash: txData as `0x${string}` });
+        const fullTx = await client.getTransaction({ hash: txData as `0x${string}` });
         tx = {
           hash: fullTx.hash,
           from: fullTx.from,
@@ -285,7 +279,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
     }> = [];
 
     try {
-      const receipt = await rpcClient.getTransactionReceipt({ hash: tx.hash });
+      const receipt = await client.getTransactionReceipt({ hash: tx.hash });
       gasUsed = receipt.gasUsed;
       status = receipt.status === "success" ? 1 : 0;
       contractAddress = receipt.contractAddress ?? null;
@@ -457,7 +451,7 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
       // Get bytecode size
       let bytecodeSize: number | null = null;
       try {
-        const code = await rpcClient.getCode({ address: contractAddress });
+        const code = await client.getCode({ address: contractAddress });
         if (code) bytecodeSize = code.length;
       } catch {
         // Ignore

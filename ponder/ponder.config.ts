@@ -76,9 +76,16 @@ export default createConfig({
   networks: {
     flowEvm: {
       chainId: 747,
-      transport: http(process.env.FLOW_EVM_RPC_URL ?? "https://mainnet.evm.nodes.onflow.org"),
-      // Increase polling for faster sync
-      pollingInterval: 1000,
+      transport: http(process.env.FLOW_EVM_RPC_URL ?? "https://mainnet.evm.nodes.onflow.org", {
+        batch: {
+          batchSize: 100,    // Batch up to 100 RPC calls together
+          wait: 50,          // Wait 50ms to collect calls for batching
+        },
+        retryCount: 5,
+        retryDelay: 1000,
+        timeout: 60000,      // 60 second timeout
+      }),
+      pollingInterval: 2000,  // Increase from 1000ms to 2000ms for stability
     },
   },
   blocks: {
