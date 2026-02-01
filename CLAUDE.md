@@ -546,10 +546,13 @@ Run 4 Ponder instances simultaneously, each indexing a different time range:
 
 #### Railway Project URLs
 ```
-Stage 1 (1 day):   https://athletic-prosperity-production.up.railway.app (ACTIVE)
-Stage 2 (1 week):  https://railway.com/project/4cc50d84-480d-420f-afc6-6f36fe162377
-Stage 3 (1 month): https://railway.com/project/2819b600-eb23-49ff-bd9a-a82583a7a31b
-Stage 4 (genesis): https://railway.com/project/c3a10738-3b2b-48a8-829f-0a6b59e78fdb
+Stage 1 (1 day):      https://athletic-prosperity-production.up.railway.app (ACTIVE)
+Stage 2 (1 week):     https://railway.com/project/4cc50d84-480d-420f-afc6-6f36fe162377
+Stage 3 (1 month):    https://railway.com/project/2819b600-eb23-49ff-bd9a-a82583a7a31b
+Stage 4 (genesis):    https://railway.com/project/c3a10738-3b2b-48a8-829f-0a6b59e78fdb
+Stage 4 V2 (genesis): https://railway.com/project/ad1ca5f5-fa2d-4e57-959f-224853b8a2d3
+                      https://ponder-v2-production.up.railway.app
+                      ⚡ USES SIMPLIFIED 7-TABLE SCHEMA + eth_getBlockReceipts
 ```
 
 #### Setup Instructions for New Stages
@@ -590,16 +593,18 @@ For each new stage (week, month, genesis):
 | Stage | Project | Start Block | Public Domain | Status |
 |-------|---------|-------------|---------------|--------|
 | 1 (day) | flow-ponder | 54,600,000 | `athletic-prosperity-production.up.railway.app` | ✅ RUNNING |
-| 2 (week) | ponder-week | 54,000,000 | *(configured - check Railway)* | ✅ DEPLOYED |
+| 2 (week) | ponder-week | 54,000,000 | `block-explorer-flow-production-6d85.up.railway.app` | ✅ DEPLOYED |
 | 3 (month) | ponder-month | 52,000,000 | `block-explorer-flow-production.up.railway.app` | ✅ DEPLOYED |
-| 4 (genesis) | ponder-genesis | 0 | `block-explorer-flow-production-0468.up.railway.app` | ✅ DEPLOYED |
+| 4 (genesis) | ponder-genesis | 0 | `block-explorer-flow-production-0468.up.railway.app` | ✅ DEPLOYED (old schema) |
+| 4 V2 (genesis) | ponder-genesis-v2 | 0 | `ponder-v2-production.up.railway.app` | ⚡ NEW (simplified 7-table schema) |
 
 #### Railway Project Links (for management)
 ```
-Stage 1: https://railway.com/project/849bd28b-9738-48d5-9c8a-5da02eadc65c
-Stage 2: https://railway.com/project/4cc50d84-480d-420f-afc6-6f36fe162377
-Stage 3: https://railway.com/project/2819b600-eb23-49ff-bd9a-a82583a7a31b
-Stage 4: https://railway.com/project/c3a10738-3b2b-48a8-829f-0a6b59e78fdb
+Stage 1:    https://railway.com/project/849bd28b-9738-48d5-9c8a-5da02eadc65c
+Stage 2:    https://railway.com/project/4cc50d84-480d-420f-afc6-6f36fe162377
+Stage 3:    https://railway.com/project/2819b600-eb23-49ff-bd9a-a82583a7a31b
+Stage 4:    https://railway.com/project/c3a10738-3b2b-48a8-829f-0a6b59e78fdb
+Stage 4 V2: https://railway.com/project/ad1ca5f5-fa2d-4e57-959f-224853b8a2d3 (simplified schema)
 ```
 
 #### Environment Variables (all stages)
