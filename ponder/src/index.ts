@@ -709,10 +709,15 @@ ponder.on("ERC20:Transfer", async ({ event, context }) => {
     }).onConflictDoNothing();
 
     // Update contract type to ERC-20 if this contract exists
-    await db.update(contracts, { address: tokenAddress }).set({
-      contractType: "erc20",
-    });
+    // Check existence first to avoid RecordNotFoundError for contracts deployed before PONDER_START_BLOCK
+    const existingContract = await db.find(contracts, { address: tokenAddress });
+    if (existingContract) {
+      await db.update(contracts, { address: tokenAddress }).set({
+        contractType: "erc20",
+      });
+    }
   } else {
+    // existingToken is guaranteed to exist in this branch
     // Update transfer count
     await db.update(tokens, { address: tokenAddress }).set((row) => ({
       transferCount: row.transferCount + 1,
@@ -771,9 +776,13 @@ ponder.on("ERC20:Transfer", async ({ event, context }) => {
       }).onConflictDoNothing();
 
       // Increment holder count for token
-      await db.update(tokens, { address: tokenAddress }).set((row) => ({
-        holderCount: row.holderCount + 1,
-      }));
+      // Check existence first - token might not exist if insert failed due to race condition
+      const tokenForHolderUpdate = await db.find(tokens, { address: tokenAddress });
+      if (tokenForHolderUpdate) {
+        await db.update(tokens, { address: tokenAddress }).set((row) => ({
+          holderCount: row.holderCount + 1,
+        }));
+      }
     }
   }
 
@@ -906,9 +915,12 @@ ponder.on("ERC721:Transfer", async ({ event, context }) => {
     }).onConflictDoNothing();
 
     // Update contract type to ERC-721 if this contract exists
-    await db.update(contracts, { address: collectionAddress }).set({
-      contractType: "erc721",
-    });
+    // Check existence first to avoid RecordNotFoundError for contracts deployed before PONDER_START_BLOCK
+    if (contractRecord) {
+      await db.update(contracts, { address: collectionAddress }).set({
+        contractType: "erc721",
+      });
+    }
 
     // Track NFT creator
     if (creatorAddress) {
@@ -928,6 +940,7 @@ ponder.on("ERC721:Transfer", async ({ event, context }) => {
       }
     }
   } else {
+    // existingCollection is guaranteed to exist in this branch
     // Update transfer count
     await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
       transferCount: row.transferCount + 1,
@@ -1084,6 +1097,11 @@ ponder.on("ERC1155:TransferSingle", async ({ event, context }) => {
   const existingCollection = await db.find(nftCollections, { address: collectionAddress });
 
   if (!existingCollection) {
+    // Get creator address from contract deployer
+    const contractRecord = await db.find(contracts, { address: collectionAddress });
+    const creatorAddress = contractRecord?.deployerAddress ?? null;
+    const isBurnCheck = to.toLowerCase() === zeroAddress.toLowerCase();
+
     await db.insert(nftCollections).values({
       address: collectionAddress,
       name: null,
@@ -1092,15 +1110,23 @@ ponder.on("ERC1155:TransferSingle", async ({ event, context }) => {
       totalSupply: null,
       transferCount: 1,
       holderCount: isMint ? 1 : 0,
+      uniqueOwnerCount: isMint ? 1 : 0,
+      creatorAddress,
+      mintCount: isMint ? 1 : 0,
+      burnCount: isBurnCheck ? 1 : 0,
       firstSeenBlock: blockNumber,
       firstSeenTimestamp: timestamp,
     }).onConflictDoNothing();
 
     // Update contract type to ERC-1155 if this contract exists
-    await db.update(contracts, { address: collectionAddress }).set({
-      contractType: "erc1155",
-    });
+    // Check existence first to avoid RecordNotFoundError for contracts deployed before PONDER_START_BLOCK
+    if (contractRecord) {
+      await db.update(contracts, { address: collectionAddress }).set({
+        contractType: "erc1155",
+      });
+    }
   } else {
+    // existingCollection is guaranteed to exist in this branch
     await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
       transferCount: row.transferCount + 1,
     }));
@@ -1145,9 +1171,13 @@ ponder.on("ERC1155:TransferSingle", async ({ event, context }) => {
       }).onConflictDoNothing();
 
       // Increment holder count for collection
-      await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
-        holderCount: row.holderCount + 1,
-      }));
+      // Check existence first - collection might not exist if insert failed due to race condition
+      const collectionForHolderUpdate = await db.find(nftCollections, { address: collectionAddress });
+      if (collectionForHolderUpdate) {
+        await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
+          holderCount: row.holderCount + 1,
+        }));
+      }
     }
   }
 });
@@ -1248,10 +1278,14 @@ ponder.on("ERC1155:TransferBatch", async ({ event, context }) => {
     }).onConflictDoNothing();
 
     // Update contract type to ERC-1155 if this contract exists
-    await db.update(contracts, { address: collectionAddress }).set({
-      contractType: "erc1155",
-    });
+    // Check existence first to avoid RecordNotFoundError for contracts deployed before PONDER_START_BLOCK
+    if (contractRecord) {
+      await db.update(contracts, { address: collectionAddress }).set({
+        contractType: "erc1155",
+      });
+    }
   } else {
+    // existingCollection is guaranteed to exist in this branch
     await db.update(nftCollections, { address: collectionAddress }).set((row) => ({
       transferCount: row.transferCount + ids.length,
       mintCount: isMint ? (row.mintCount ?? 0) + ids.length : row.mintCount,
