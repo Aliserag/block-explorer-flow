@@ -81,8 +81,8 @@ export default createConfig({
           batchSize: 100,    // Batch up to 100 RPC calls together
           wait: 50,          // Wait 50ms to collect calls for batching
         },
-        retryCount: 5,
-        retryDelay: 1000,
+        retryCount: 10,      // Increased for better resilience
+        retryDelay: 2000,    // Increased for exponential backoff
         timeout: 60000,      // 60 second timeout
       }),
       pollingInterval: 2000,  // Increase from 1000ms to 2000ms for stability

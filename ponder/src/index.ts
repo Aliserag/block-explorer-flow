@@ -226,29 +226,39 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
   const activeContracts = new Set<string>();
   let newAccountsCount = 0;
 
-  // Process transactions - fetch full data if we only have hashes
-  for (let i = 0; i < transactionCount; i++) {
-    const txData = txList[i];
-    if (!txData) continue;
+  // Type for processed transaction data
+  type TxData = {
+    hash: `0x${string}`;
+    from: `0x${string}`;
+    to: `0x${string}` | null;
+    value: bigint;
+    gas: bigint;
+    gasPrice: bigint | null;
+    input: `0x${string}`;
+    nonce: number;
+    type: string | number;
+  };
 
-    // If we only have the hash, fetch the full transaction
-    let tx: {
-      hash: `0x${string}`;
-      from: `0x${string}`;
-      to: `0x${string}` | null;
-      value: bigint;
-      gas: bigint;
-      gasPrice: bigint | null;
-      input: `0x${string}`;
-      nonce: number;
-      type: string | number;
-    };
+  type ReceiptData = {
+    gasUsed: bigint;
+    status: number;
+    contractAddress: `0x${string}` | null;
+    logs: Array<{
+      address: `0x${string}`;
+      topics: readonly `0x${string}`[];
+      data: `0x${string}`;
+      logIndex: number;
+    }>;
+  } | null;
+
+  // STEP 1: Batch fetch full transactions for any that are just hashes
+  const txPromises = txList.map(async (txData): Promise<TxData | null> => {
+    if (!txData) return null;
 
     if (typeof txData === "string") {
-      // txData is just a hash, fetch full transaction
       try {
         const fullTx = await client.getTransaction({ hash: txData as `0x${string}` });
-        tx = {
+        return {
           hash: fullTx.hash,
           from: fullTx.from,
           to: fullTx.to ?? null,
@@ -260,51 +270,60 @@ ponder.on("FlowBlocks:block", async ({ event, context }) => {
           type: fullTx.type ?? 0,
         };
       } catch {
-        // Can't fetch transaction, skip it
-        continue;
+        return null;
       }
-    } else {
-      tx = txData as typeof tx;
     }
+    return txData as TxData;
+  });
 
-    // Get receipt for gas used, status, and logs
-    let gasUsed: bigint | null = null;
-    let status: number | null = null;
-    let contractAddress: `0x${string}` | null = null;
-    let logs: Array<{
-      address: `0x${string}`;
-      topics: readonly `0x${string}`[];
-      data: `0x${string}`;
-      logIndex: number;
-    }> = [];
+  const resolvedTxs = await Promise.all(txPromises);
 
+  // STEP 2: Batch fetch all receipts in parallel (major performance improvement)
+  const receiptPromises = resolvedTxs.map(async (tx): Promise<ReceiptData> => {
+    if (!tx) return null;
     try {
       const receipt = await client.getTransactionReceipt({ hash: tx.hash });
-      gasUsed = receipt.gasUsed;
-      status = receipt.status === "success" ? 1 : 0;
-      contractAddress = receipt.contractAddress ?? null;
-      logs = receipt.logs ?? [];
-
-      // Index event logs
-      for (const log of logs) {
-        const logId = `${tx.hash}-${log.logIndex}`;
-        await db.insert(eventLogs).values({
-          id: logId,
-          transactionHash: tx.hash,
-          blockNumber: block.number,
-          timestamp: block.timestamp,
-          address: log.address,
-          topic0: log.topics[0] ?? null,
-          topic1: log.topics[1] ?? null,
-          topic2: log.topics[2] ?? null,
-          topic3: log.topics[3] ?? null,
-          data: log.data,
-          logIndex: log.logIndex,
-          eventName: getEventName(log.topics[0]),
-        }).onConflictDoNothing();
-      }
+      return {
+        gasUsed: receipt.gasUsed,
+        status: receipt.status === "success" ? 1 : 0,
+        contractAddress: receipt.contractAddress ?? null,
+        logs: receipt.logs ?? [],
+      };
     } catch {
-      // Receipt not available, continue without it
+      return null;
+    }
+  });
+
+  const receipts = await Promise.all(receiptPromises);
+
+  // STEP 3: Process transactions with their receipts
+  for (let i = 0; i < transactionCount; i++) {
+    const tx = resolvedTxs[i];
+    if (!tx) continue;
+
+    const receipt = receipts[i];
+    const gasUsed = receipt?.gasUsed ?? null;
+    const status = receipt?.status ?? null;
+    const contractAddress = receipt?.contractAddress ?? null;
+    const logs = receipt?.logs ?? [];
+
+    // Index event logs
+    for (const log of logs) {
+      const logId = `${tx.hash}-${log.logIndex}`;
+      await db.insert(eventLogs).values({
+        id: logId,
+        transactionHash: tx.hash,
+        blockNumber: block.number,
+        timestamp: block.timestamp,
+        address: log.address,
+        topic0: log.topics[0] ?? null,
+        topic1: log.topics[1] ?? null,
+        topic2: log.topics[2] ?? null,
+        topic3: log.topics[3] ?? null,
+        data: log.data,
+        logIndex: log.logIndex,
+        eventName: getEventName(log.topics[0]),
+      }).onConflictDoNothing();
     }
 
     await db.insert(transactions).values({
